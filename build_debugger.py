@@ -41,6 +41,101 @@ OPCODES = [
     "LM 8", "LM 9", "LM 10", "LM 11", "LM 12", "LM 13", "LM 14", "LM 15",
 ] + ["CALL"] * 64 + ["GO"] * 64
 
+ISA_SUMMARIES = {
+    "NOP": "No operation.",
+    "HXBR": "Exchange H and Br.",
+    "ADD": "A <- A + C + M[B]. If result >= 10 set C=1, else set C=0 and arm skip.",
+    "SC": "Set carry: C <- 1.",
+    "TF 1": "Skip if F1 input is zero.",
+    "TIR": "Skip if D03 is zero.",
+    "MTA": "A <- M[B].",
+    "MTA 1": "A <- M[B], then Br <- Br XOR 1.",
+    "MTA 2": "A <- M[B], then Br <- Br XOR 2.",
+    "MTA 3": "A <- M[B], then Br <- Br XOR 3.",
+    "EXC": "Exchange A <-> M[B].",
+    "EXC 1": "Exchange A <-> M[B], then Br <- Br XOR 1.",
+    "EXC 2": "Exchange A <-> M[B], then Br <- Br XOR 2.",
+    "EXC 3": "Exchange A <-> M[B], then Br <- Br XOR 3.",
+    "EXC-": "Exchange A <-> M[B], then decrement Bd. Emulator skips on wrap when Bd becomes 15.",
+    "EXC- 1": "Exchange A <-> M[B], Br <- Br XOR 1, then decrement Bd. Emulator skips on wrap when Bd becomes 15.",
+    "EXC- 2": "Exchange A <-> M[B], Br <- Br XOR 2, then decrement Bd. Emulator skips on wrap when Bd becomes 15.",
+    "EXC- 3": "Exchange A <-> M[B], Br <- Br XOR 3, then decrement Bd. Emulator skips on wrap when Bd becomes 15.",
+    "EXC+": "Exchange A <-> M[B], then increment Bd. Emulator skips on wrap when Bd becomes 0 or 13; wrap rule is uncertain.",
+    "EXC+ 1": "Exchange A <-> M[B], Br <- Br XOR 1, then increment Bd. Emulator skips on wrap when Bd becomes 0 or 13; wrap rule is uncertain.",
+    "EXC+ 2": "Exchange A <-> M[B], Br <- Br XOR 2, then increment Bd. Emulator skips on wrap when Bd becomes 0 or 13; wrap rule is uncertain.",
+    "EXC+ 3": "Exchange A <-> M[B], Br <- Br XOR 3, then increment Bd. Emulator skips on wrap when Bd becomes 0 or 13; wrap rule is uncertain.",
+    "DSPA": "Drive segment outputs directly: A to Sa..Sd, H to Se..Sg, Sp <- ~C.",
+    "DSPS": "Drive segment outputs from PLA decode of A, with Sp <- ~C.",
+    "AD": "A <- A + M[B].",
+    "LBL": "Two-byte load of B from the next ROM byte. Successive-LBL behavior is uncertain in the emulator.",
+    "TF 2": "Skip if F2 input is zero.",
+    "TKB": "Read keyboard inputs via D into K and skip if any key is active.",
+    "COMP": "A <- ~A.",
+    "AXO": "Exchange A and serial buffer.",
+    "SUB": "Subtract/borrow primitive: tmp <- ~A + C + M[B], A <- tmp. If tmp > 15 set C=1 and arm skip, else C=0.",
+    "RSC": "Reset carry: C <- 0.",
+    "TF 3": "Skip if F3 input is zero.",
+    "BTD": "D <- Bd and force BLK low for one cycle.",
+    "0TA": "A <- 0.",
+    "HXA": "Exchange H and A.",
+    "TAM": "Skip if A == M[B].",
+    "LDF": "Two-byte flag load. Masked bits in next ROM byte update F1..F3.",
+    "READ": "A <- K.",
+    "TIN": "Skip if INB == 1.",
+    "RET": "Return by popping SA into P and shifting SB up into SA.",
+    "RETS": "Set skip, then execute RET. Effectively return and skip next instruction at caller.",
+    "RSM 8": "Clear bit 8 in M[B].",
+    "BTA": "A <- Bd.",
+    "TM 1": "Skip if tested bit 1 of M[B] is zero.",
+    "TM 2": "Skip if tested bit 2 of M[B] is zero.",
+    "TM 4": "Skip if tested bit 4 of M[B] is zero.",
+    "TM 8": "Skip if tested bit 8 of M[B] is zero.",
+    "RSM 1": "Clear bit 1 in M[B].",
+    "SM 1": "Set bit 1 in M[B].",
+    "SM 8": "Set bit 8 in M[B].",
+    "RSM 4": "Clear bit 4 in M[B].",
+    "RSM 2": "Clear bit 2 in M[B].",
+    "TC": "Skip if C == 0.",
+    "SM 2": "Set bit 2 in M[B].",
+    "SM 4": "Set bit 4 in M[B].",
+    "ATB": "Bd <- A.",
+    "ADX 1": "A <- A + 1. Arm skip if result does not overflow 4 bits.",
+    "ADX 2": "A <- A + 2. Arm skip if result does not overflow 4 bits.",
+    "ADX 3": "A <- A + 3. Arm skip if result does not overflow 4 bits.",
+    "ADX 4": "A <- A + 4. Arm skip if result does not overflow 4 bits.",
+    "ADX 5": "A <- A + 5. Arm skip if result does not overflow 4 bits.",
+    "ADX 6": "A <- A + 6. Used as decimal correction. No skip on non-overflow because n == 6 is special.",
+    "ADX 7": "A <- A + 7. Arm skip if result does not overflow 4 bits.",
+    "ADX 8": "A <- A + 8. Arm skip if result does not overflow 4 bits.",
+    "ADX 9": "A <- A + 9. Arm skip if result does not overflow 4 bits.",
+    "ADX 10": "A <- A + 10. Arm skip if result does not overflow 4 bits.",
+    "ADX 11": "A <- A + 11. Arm skip if result does not overflow 4 bits.",
+    "ADX 12": "A <- A + 12. Arm skip if result does not overflow 4 bits.",
+    "ADX 13": "A <- A + 13. Arm skip if result does not overflow 4 bits.",
+    "ADX 14": "A <- A + 14. Arm skip if result does not overflow 4 bits.",
+    "ADX 15": "A <- A + 15. Arm skip if result does not overflow 4 bits.",
+    "LG": "Two-byte long transfer. Target page comes from opcode nibble and one bit from the second byte. Bit 6 of the second byte selects long call versus long go.",
+    "LM 0": "M[B] <- 0, then Bd <- Bd + 1.",
+    "LM 1": "M[B] <- 1, then Bd <- Bd + 1.",
+    "LM 2": "M[B] <- 2, then Bd <- Bd + 1.",
+    "LM 3": "M[B] <- 3, then Bd <- Bd + 1.",
+    "LM 4": "M[B] <- 4, then Bd <- Bd + 1.",
+    "LM 5": "M[B] <- 5, then Bd <- Bd + 1.",
+    "LM 6": "M[B] <- 6, then Bd <- Bd + 1.",
+    "LM 7": "M[B] <- 7, then Bd <- Bd + 1.",
+    "LM 8": "M[B] <- 8, then Bd <- Bd + 1.",
+    "LM 9": "M[B] <- 9, then Bd <- Bd + 1.",
+    "LM 10": "M[B] <- 10, then Bd <- Bd + 1.",
+    "LM 11": "M[B] <- 11, then Bd <- Bd + 1.",
+    "LM 12": "M[B] <- 12, then Bd <- Bd + 1.",
+    "LM 13": "M[B] <- 13, then Bd <- Bd + 1.",
+    "LM 14": "M[B] <- 14, then Bd <- Bd + 1.",
+    "LM 15": "M[B] <- 15, then Bd <- Bd + 1.",
+    "CALL": "Transfer to page 037, word xx. If not already on page 036/037, push return state into SA/SB.",
+    "GO": "Jump to raw word xx within the current page. If executed on page 037, page changes to 036.",
+    "LB": "Load B from encoded register/digit, but only the first LB in a consecutive run takes effect in the emulator.",
+}
+
 DISASM_RE = re.compile(r"^\s*([0-7]{4})\s+@([0-7]{4})\s+([0-7]{3})\s+(.*)$")
 
 
@@ -103,6 +198,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     rom_json = json.dumps(rom)
     lfsr_json = json.dumps(LFSR_SEQUENCE)
     opcodes_json = json.dumps(OPCODES)
+    isa_summaries_json = json.dumps(ISA_SUMMARIES)
     disasm_json = json.dumps(disasm_lines)
     logical_map_json = json.dumps({str(k): v for k, v in logical_to_line.items()})
 
@@ -368,6 +464,11 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       color: #7a3f19;
       font-weight: 600;
     }}
+    .op-tip {{
+      text-decoration: underline dotted rgba(15, 107, 92, 0.55);
+      text-underline-offset: 2px;
+      cursor: help;
+    }}
     .trace {{
       border-top: 1px solid var(--line);
       padding: 10px 14px 14px;
@@ -478,6 +579,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     const LFSR_SEQUENCE = __LFSR_JSON__;
     const OPCODES = __OPCODES_JSON__;
     const DISASM_LINES = __DISASM_JSON__;
+    const ISA_SUMMARIES = __ISA_SUMMARIES_JSON__;
     const LOGICAL_TO_LINE = __LOGICAL_MAP_JSON__;
     const LFSR_INDEX_BY_WORD = Object.fromEntries(LFSR_SEQUENCE.map((word, index) => [word, index]));
     const SEGMENT_DATA = [0x7f, 0x40, 0x79, 0x24, 0x30, 0x19, 0x12, 0x02, 0x78, 0x10, 0x06, 0x23, 0x06, 0x66, 0x6f, 0x01, 0x02, 0x08, 0x04];
@@ -960,13 +1062,37 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     function renderDisasm() {{
       const root = document.getElementById("disasm");
       const currentLogical = getLogicalPC();
+      const escapeHtml = (text) =>
+        (text || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
       root.innerHTML = DISASM_LINES.map((line, index) => {{
         const classes = ["line", line.type];
         if (line.type === "instr" && line.logical === currentLogical) classes.push("current");
         if (line.type === "instr" && line.logical === selectedLogical) classes.push("selected");
         const logicalAttr = line.type === "instr" ? ` data-logical="${{line.logical}}"` : "";
-        const safe = (line.text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        return `<div class="${{classes.join(" ")}}" data-index="${{index}}"${{logicalAttr}}>${{safe}}</div>`;
+        if (line.type !== "instr") {{
+          const safe = escapeHtml(line.text || "");
+          return `<div class="${{classes.join(" ")}}" data-index="${{index}}"${{logicalAttr}}>${{safe}}</div>`;
+        }}
+        const body = line.body || "";
+        const bodyMatch = body.match(/^(\\S+)(\\s*)(.*)$/);
+        let bodyHtml = escapeHtml(body);
+        if (bodyMatch) {{
+          const opToken = bodyMatch[1];
+          const gap = bodyMatch[2] || "";
+          const tail = bodyMatch[3] || "";
+          const summary = ISA_SUMMARIES[opToken] || ISA_SUMMARIES[OPCODES[line.opcode]] || "";
+          const titleAttr = summary ? ` title="${{escapeHtml(summary)}}"` : "";
+          bodyHtml =
+            `<span class="op-tip"${{titleAttr}}>${{escapeHtml(opToken)}}</span>` +
+            `${{escapeHtml(gap)}}${{escapeHtml(tail)}}`;
+        }}
+        const prefix =
+          `${{oct(line.logical, 4)}} @${{oct(line.physical, 4)}}  ${{oct(line.opcode, 3)}}  `;
+        return `<div class="${{classes.join(" ")}}" data-index="${{index}}"${{logicalAttr}}>${{prefix}}${{bodyHtml}}</div>`;
       }}).join("");
     }}
 
@@ -1099,6 +1225,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         .replace("__ROM_JSON__", rom_json)
         .replace("__LFSR_JSON__", lfsr_json)
         .replace("__OPCODES_JSON__", opcodes_json)
+        .replace("__ISA_SUMMARIES_JSON__", isa_summaries_json)
         .replace("__DISASM_JSON__", disasm_json)
         .replace("__LOGICAL_MAP_JSON__", logical_map_json)
     )
