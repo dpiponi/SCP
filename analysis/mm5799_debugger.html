@@ -1133,6 +1133,9 @@
       if (event.key === "s" || event.key === "S") {
         event.preventDefault();
         stepOne();
+      } else if (event.key === "r" || event.key === "R") {
+        event.preventDefault();
+        stepUntilReturn();
       }
     });
 

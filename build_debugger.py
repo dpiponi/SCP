@@ -1306,8 +1306,36 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       renderTrace();
     }}
 
+    async function stepUntilReturnAnimated(maxSteps = 10000) {{
+      if (isRunning) return;
+      syncUiToState();
+      isRunning = true;
+      updateControls();
+      try {{
+        for (let i = 0; i < maxSteps; i++) {{
+          const opcode = currentOpcode();
+          const willExecuteReturn = !state.skip && (opcode === 0x40 || opcode === 0x41);
+          if (willExecuteReturn) {{
+            renderAll();
+            scrollToPc();
+            return;
+          }}
+          stepOne(false);
+          await sleep(animationDelayMs());
+        }}
+        noteTrace(`step-until-return stopped after ${maxSteps} steps without executing RET/RETS`);
+        renderTrace();
+      }} finally {{
+        isRunning = false;
+        updateControls();
+      }}
+    }}
+
     document.getElementById("step-btn").addEventListener("click", () => stepOne());
-    document.getElementById("stepover-btn").addEventListener("click", () => stepUntilReturn());
+    document.getElementById("stepover-btn").addEventListener("click", () => {{
+      if (animationEnabled()) stepUntilReturnAnimated();
+      else stepUntilReturn();
+    }});
     document.getElementById("step10-btn").addEventListener("click", () => {{
       if (animationEnabled()) runAnimatedSteps(10);
       else stepMany(10);
@@ -1339,7 +1367,8 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         stepOne();
       }} else if (event.key === "r" || event.key === "R") {{
         event.preventDefault();
-        stepUntilReturn();
+        if (animationEnabled()) stepUntilReturnAnimated();
+        else stepUntilReturn();
       }}
     }});
 
