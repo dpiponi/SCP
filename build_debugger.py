@@ -348,6 +348,11 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       background: var(--sel-hi);
       border-left-color: #4377b8;
     }}
+    .line.current.selected {{
+      background: linear-gradient(90deg, var(--pc-hi), #eef9e9);
+      border-left-color: var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(15, 107, 92, 0.14);
+    }}
     .line.page {{
       color: var(--warn);
       font-weight: 600;
@@ -596,6 +601,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
 
     function stepOne() {{
+      selectedLogical = null;
       const beforeLogical = getLogicalPC();
       const beforeRaw = getRawPC();
       const opcode = currentOpcode();
