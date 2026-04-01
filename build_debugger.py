@@ -131,6 +131,8 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     * {{ box-sizing: border-box; }}
     body {{
       margin: 0;
+      height: 100vh;
+      overflow: hidden;
       background: linear-gradient(180deg, #f7f3eb 0%, #efe7da 100%);
       color: var(--ink);
       font-family: var(--font-ui);
@@ -138,7 +140,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     .app {{
       display: grid;
       grid-template-columns: 420px 1fr;
-      min-height: 100vh;
+      height: 100vh;
       gap: 12px;
       padding: 12px;
     }}
@@ -153,6 +155,8 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       display: grid;
       grid-template-rows: auto auto auto 1fr;
       gap: 12px;
+      min-height: 0;
+      overflow: hidden;
     }}
     .section {{
       padding: 12px 14px;
@@ -254,6 +258,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
     .ram-wrap {{
       padding: 0 14px 14px;
+      overflow: auto;
     }}
     .ram-grid {{
       display: grid;
@@ -285,6 +290,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     .right {{
       display: grid;
       grid-template-rows: auto 1fr auto;
+      min-height: 0;
     }}
     .code-header {{
       padding: 12px 14px;
@@ -304,6 +310,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
     .disasm {{
       overflow: auto;
+      min-height: 0;
       font-family: var(--font-code);
       font-size: 13px;
       line-height: 1.5;
@@ -360,11 +367,17 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       white-space: pre-wrap;
     }}
     @media (max-width: 1100px) {{
+      body {{
+        height: auto;
+        overflow: auto;
+      }}
       .app {{
         grid-template-columns: 1fr;
+        height: auto;
       }}
       .left {{
         order: 2;
+        overflow: visible;
       }}
       .right {{
         order: 1;
