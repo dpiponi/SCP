@@ -1,0 +1,303 @@
+MM5799 ISA Reference
+Verified against Sean Riddle's emulator in `mm5799emu.cpp`
+
+Scope
+
+- This is a cleaned-up replacement for the rough `SCRAPPY_ISA*.txt` notes.
+- Instruction meanings below are based primarily on the emulator implementation.
+- Where the emulator itself marks behavior as uncertain, that uncertainty is kept here.
+- This is the MM5799 family view used for the Sinclair Cambridge Programmable work, not a polished vendor datasheet transcription.
+
+Register Model
+
+- `P = {Pp, Pw}`: 11-bit program counter
+  - `Pp`: 5-bit page
+  - `Pw`: 6-bit word within page
+- `SA`, `SB`: 11-bit return/save registers
+- `A`: 4-bit accumulator
+- `H`: 4-bit holding register
+- `C`: 1-bit carry flag
+- `B = {Br, Bd}`: 7-bit RAM address register
+  - `Br`: register select
+  - `Bd`: digit index
+- `M[B]`: currently addressed RAM digit
+- `S`: segment / output latch group
+- `D`: 4-bit digit/control outputs
+- `K`: 4-bit key inputs
+- `F1..F3`: general-purpose I/O flags
+- `INB`, `SI`, `SO`, `BLK`: miscellaneous I/O pins/signals
+
+Program Counter Model
+
+- ROM execution order within a page is not linear.
+- Each 64-word page is traversed in a fixed LFSR sequence.
+- `GO xx` and `CALL xx` operands are raw page-word values, not linear disassembly line numbers.
+
+Control Flow Summary
+
+- `CALL xx` (`0x80..0xBF`)
+  - Transfers to page `037`, word `xx`.
+  - If current page is not `036` or `037`, pushes return state into `SA`/`SB`.
+- `GO xx` (`0xC0..0xFF`)
+  - Sets next word to `xx`.
+  - If currently on page `037`, also forces page `036`.
+- `LG`
+  - Two-byte long transfer.
+  - Uses opcode nibble plus one bit from the second byte to compute target page.
+  - Low 6 bits of second byte become target word.
+  - If second-byte bit 6 is clear, it is a long call and updates `SA`/`SB`.
+  - Otherwise it is a long go.
+- `RET`
+  - Pops `SA` into `P`.
+  - Shifts `SB` up into `SA`.
+- `RETS`
+  - Sets skip, then executes `RET`.
+  - Effectively "return, then skip next instruction at caller".
+
+Skip Semantics
+
+- Many instructions set `skip` rather than branching directly.
+- If `skip` is set, the next instruction is skipped.
+- If the skipped instruction is a 2-byte opcode (`LBL`, `LDF`, `LG`), both bytes are skipped.
+
+Important Emulator Caveats
+
+- `LB`: the emulator ignores successive `LB` instructions. Only the first `LB` in a run takes effect.
+- `LBL`: the emulator comments explicitly question whether successive `LBL`s are also skipped. Do not treat that as confirmed.
+- `EXC+` wrap condition:
+  - emulator skips when `Bd == 0` or `Bd == 13`
+  - this is explicitly marked uncertain
+- `EXC-` wrap condition:
+  - emulator skips when `Bd == 15`
+  - also tied to the unresolved RAM organization question
+- RAM organization:
+  - comments discuss `8 x 12` versus `6 x 16`
+  - emulator uses a temporary 128-nibble RAM hack
+  - exact wrap behavior outside the used range is not fully settled
+- ROM pages `10g` through `17g` in the old notes correspond to unusable high pages in the original documentation; the emulator comments still question some wrap details there.
+
+Instruction Groups
+
+1. Arithmetic
+
+- `ADD` (`0x02`)
+  - `A <- A + C + M[B]`
+  - If result `>= 10`, set `C = 1`
+  - Else set `C = 0` and skip
+  - This is decimal-oriented carry behavior, not plain binary add.
+
+- `AD` (`0x12`)
+  - `A <- A + M[B]`
+  - No carry handling in the emulator beyond plain nibble accumulation.
+
+- `SUB` (`0x22`)
+  - Emulator computes `tmp = ~A + C + M[B]`
+  - `A <- tmp`
+  - If `tmp > 15`, set `C = 1` and skip
+  - Else set `C = 0`
+  - In practice this is the machine's subtract/borrow primitive.
+
+- `SC` (`0x03`)
+  - `C <- 1`
+
+- `RSC` (`0x23`)
+  - `C <- 0`
+
+- `TC` (`0x4D`)
+  - Skip if `C == 0`
+
+- `COMP` (`0x20`)
+  - `A <- ~A`
+
+- `0TA` (`0x30`)
+  - `A <- 0`
+
+- `ADX n` (`0x51..0x5F`)
+  - `A <- A + n`
+  - If `A + n < 16` and `n != 6`, skip
+  - This odd skip rule is implemented exactly that way in the emulator.
+  - `ADX 6` is commonly used as decimal correction.
+
+2. Data / Register Transfer
+
+- `MTA r` (`0x06`, `0x16`, `0x26`, `0x36`)
+  - `A <- M[B]`
+  - Then `Br <- Br XOR r`
+  - This is not just "load A"; it also toggles the register-bank select.
+
+- `EXC r` (`0x07`, `0x17`, `0x27`, `0x37`)
+  - Exchange `A <-> M[B]`
+  - Then `Br <- Br XOR r`
+
+- `EXC- r` (`0x08`, `0x18`, `0x28`, `0x38`)
+  - Exchange `A <-> M[B]`
+  - Then `Br <- Br XOR r`
+  - Then `Bd <- Bd - 1`
+  - Skip if `Bd == 15`
+
+- `EXC+ r` (`0x09`, `0x19`, `0x29`, `0x39`)
+  - Exchange `A <-> M[B]`
+  - Then `Br <- Br XOR r`
+  - Then `Bd <- Bd + 1`
+  - Skip if `Bd == 0` or `Bd == 13`
+  - The wrap condition is explicitly uncertain in emulator comments.
+
+- `LM n` (`0x70..0x7F`)
+  - `M[B] <- n`
+  - Then `Bd <- Bd + 1`
+  - No skip behavior in the emulator.
+
+- `ATB` (`0x50`)
+  - `Bd <- A`
+
+- `BTA` (`0x43`)
+  - `A <- Bd`
+
+- `HXBR` (`0x01`)
+  - Exchange `H <-> Br`
+
+- `HXA` (`0x31`)
+  - Exchange `H <-> A`
+
+3. Memory Addressing
+
+- `LB r,d` (`0x0A..0x0F`, `0x1A..0x1F`, `0x2A..0x2F`, `0x3A..0x3F`)
+  - If previous instruction was not `LB`:
+    - `Br <- r`
+    - `Bd <- d`
+  - `LB *,5` is encoded specially as low nibble `0x0A`
+  - Emulator behavior:
+    - only the first `LB` in a consecutive run is honored
+    - later `LB`s in the run are ignored
+
+- `LBL` (`0x13`)
+  - Two-byte instruction
+  - Load next ROM byte directly into `B`
+  - Advance past the second byte
+  - Emulator comment explicitly questions whether successive `LBL`s should be skipped like `LB`s
+
+4. Compare / Test
+
+- `TAM` (`0x32`)
+  - Skip if `A == M[B]`
+
+- `TM 1/2/4/8` (`0x44..0x47`)
+  - Skip if the tested bit of `M[B]` is zero
+
+- `TF 1/2/3` (`0x04`, `0x14`, `0x24`)
+  - Skip if corresponding `F` input is zero
+
+- `TIN` (`0x35`)
+  - Skip if `INB == 1`
+
+- `TKB` (`0x15`)
+  - Reads keyboard inputs via `kinput(mm5799.D)`
+  - Skip if any key input is active (`K > 0`)
+  - Active level is noted as programmable in comments
+
+- `TIR` (`0x05`)
+  - Skip if `D03 == 0`
+
+- `READ` (`0x34`)
+  - `A <- K`
+
+5. Bit Operations on Memory
+
+- `RSM 8` (`0x42`)
+  - `M[B] &= 0x7`
+
+- `RSM 1` (`0x48`)
+  - `M[B] &= 0xE`
+
+- `RSM 4` (`0x4B`)
+  - `M[B] &= 0xB`
+
+- `RSM 2` (`0x4C`)
+  - `M[B] &= 0xD`
+
+- `SM 1` (`0x49`)
+  - `M[B] |= 0x1`
+
+- `SM 8` (`0x4A`)
+  - `M[B] |= 0x8`
+
+- `SM 2` (`0x4E`)
+  - `M[B] |= 0x2`
+
+- `SM 4` (`0x4F`)
+  - `M[B] |= 0x4`
+
+6. Display / I/O / Serial
+
+- `DSPA` (`0x10`)
+  - Direct output:
+    - `A` to `Sa..Sd`
+    - `H` to `Se..Sg`
+    - `Sp <- ~C`
+
+- `DSPS` (`0x11`)
+  - Segment-PLA decode of `A` to `Sa..Sg`
+  - `Sp <- ~C`
+
+- `BTD` (`0x25`)
+  - `D <- Bd`
+  - `BLK <- 0` for one cycle
+
+- `AXO` (`0x21`)
+  - Exchange `A <-> serbuf`
+  - Acts as serial I/O exchange primitive
+
+- `LDF` (`0x33`)
+  - Two-byte instruction
+  - Loads `F1..F3` from masked bits in next ROM byte
+  - Per-emulator behavior:
+    - if a mask bit is clear, corresponding `F` line is updated from data bit
+  - Advance past the second byte
+
+7. Flow Control Details
+
+- `RET` / `RETS` use `SA` and `SB`, not an arbitrary-depth hardware stack.
+- Non-long `CALL` always transfers into page `037`.
+- `GO` executed on page `037` drops into page `036`.
+- This makes page `037` a call hub and page `036` a common continuation/helper page.
+
+Opcode Summary by High Nibble
+
+- `0x0x`: core arithmetic / memory / tests / `LB 0,*`
+- `0x1x`: display / keyboard / `MTA 1` / `EXC 1` / `LB 1,*`
+- `0x2x`: arithmetic / serial / `MTA 2` / `EXC 2` / `LB 2,*`
+- `0x3x`: accumulator / compare / `MTA 3` / `EXC 3` / `LB 3,*`
+- `0x4x`: returns, bit tests, bit set/reset, carry test
+- `0x5x`: `ATB` and `ADX 1..15`
+- `0x6x`: `LG`
+- `0x7x`: `LM 0..15`
+- `0x8x..0xBx`: `CALL`
+- `0xCx..0xFx`: `GO`
+
+Practical Reverse-Engineering Notes
+
+- `EXC`, `EXC-`, and `EXC+` are data-motion instructions as much as pointer instructions.
+- Many ROM loops are built from:
+  - exchange
+  - pointer step
+  - skip on wrap
+  - `GO`/`CALL` back-edge
+- `RETS` is often the real conditional branch outcome in tiny helpers.
+- Consecutive `LB`s should be treated very cautiously.
+  - If the emulator's `wasLB` behavior is right, only the first one is effective.
+  - This matters a lot when reading dense page-37 helper code.
+
+Known Uncertainties
+
+- Exact `Bd` wrap behavior for `EXC+` and `EXC-`
+- Exact RAM packing / wrap semantics for `8 x 12` mode versus `6 x 16`
+- Whether successive `LBL`s are ignored like `LB`s
+- Some vendor-datasheet wording around page availability and long transfers
+
+Recommended Reading Order for This ROM
+
+1. Learn `LB`, `MTA`, `EXC`, `EXC-`, `EXC+`, `LM`, `RET`, `RETS`, `TM`, `ADX`
+2. Then learn `CALL`, `GO`, and `LG`
+3. Only after that start reading page-37 helper code
+
+Because on this machine, "small helper" usually means "one instruction plus a very non-obvious calling convention".
