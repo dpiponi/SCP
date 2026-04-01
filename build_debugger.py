@@ -289,6 +289,10 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       color: white;
       border-color: var(--accent);
     }}
+    button:disabled {{
+      opacity: 0.55;
+      cursor: default;
+    }}
     button:hover {{ filter: brightness(0.98); }}
     .grid {{
       display: grid;
@@ -331,6 +335,24 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       color: var(--ink);
       text-transform: none;
       letter-spacing: 0;
+    }}
+    .toolbar-option {{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: white;
+      font-size: 12px;
+    }}
+    .toolbar-option input[type="number"] {{
+      width: 64px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 4px 6px;
+      font: inherit;
+      font-family: var(--font-code);
     }}
     .small-note {{
       color: var(--muted);
@@ -526,6 +548,14 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             <button id="reset-btn">Reset</button>
             <button id="apply-btn">Apply Edits</button>
             <button id="goto-pc-btn">Scroll To PC</button>
+            <label class="toolbar-option" for="animate-toggle">
+              <input type="checkbox" id="animate-toggle">
+              <span>Animate</span>
+            </label>
+            <label class="toolbar-option" for="animate-delay">
+              <span>Delay ms</span>
+              <input type="number" id="animate-delay" min="10" max="2000" step="10" value="80">
+            </label>
           </div>
           <div class="status-strip" id="status-strip"></div>
         </div>
@@ -613,6 +643,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
 
     const trace = [];
     let selectedLogical = null;
+    let isRunning = false;
 
     function oct(n, width = 0) {{
       const value = (n >>> 0).toString(8);
@@ -673,6 +704,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
 
     function resetState() {{
+      if (isRunning) return;
       state.Pp = 0;
       state.Pw = 0;
       state.SA = 0;
@@ -710,6 +742,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
 
     function stepOne(syncInputs = true) {{
+      if (isRunning && syncInputs) return;
       if (syncInputs) syncUiToState();
       selectedLogical = null;
       const beforeLogical = getLogicalPC();
@@ -1109,6 +1142,14 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       renderRam();
       renderDisasm();
       renderTrace();
+      updateControls();
+    }}
+
+    function updateControls() {{
+      for (const id of ["step-btn", "stepover-btn", "step10-btn", "run100-btn", "reset-btn", "apply-btn"]) {{
+        const el = document.getElementById(id);
+        if (el) el.disabled = isRunning;
+      }}
     }}
 
     function parseNumber(text, fallbackBase = 10) {{
@@ -1214,6 +1255,36 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       }}
     }}
 
+    function animationEnabled() {{
+      return document.getElementById("animate-toggle").checked;
+    }}
+
+    function animationDelayMs() {{
+      const raw = Number(document.getElementById("animate-delay").value);
+      if (!Number.isFinite(raw)) return 80;
+      return Math.max(10, Math.min(2000, raw));
+    }}
+
+    function sleep(ms) {{
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }}
+
+    async function runAnimatedSteps(count) {{
+      if (isRunning) return;
+      syncUiToState();
+      isRunning = true;
+      updateControls();
+      try {{
+        for (let i = 0; i < count; i++) {{
+          stepOne(false);
+          await sleep(animationDelayMs());
+        }}
+      }} finally {{
+        isRunning = false;
+        updateControls();
+      }}
+    }}
+
     function stepUntilReturn(maxSteps = 10000) {{
       syncUiToState();
       for (let i = 0; i < maxSteps; i++) {{
@@ -1228,8 +1299,14 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
 
     document.getElementById("step-btn").addEventListener("click", () => stepOne());
     document.getElementById("stepover-btn").addEventListener("click", () => stepUntilReturn());
-    document.getElementById("step10-btn").addEventListener("click", () => stepMany(10));
-    document.getElementById("run100-btn").addEventListener("click", () => stepMany(100));
+    document.getElementById("step10-btn").addEventListener("click", () => {{
+      if (animationEnabled()) runAnimatedSteps(10);
+      else stepMany(10);
+    }});
+    document.getElementById("run100-btn").addEventListener("click", () => {{
+      if (animationEnabled()) runAnimatedSteps(100);
+      else stepMany(100);
+    }});
     document.getElementById("reset-btn").addEventListener("click", () => resetState());
     document.getElementById("apply-btn").addEventListener("click", () => applyEdits());
     document.getElementById("goto-pc-btn").addEventListener("click", () => scrollToPc());
