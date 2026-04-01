@@ -23,6 +23,8 @@ separate three things clearly:
 - `TKB` tests keypad inputs.
 - `READ` reads the keypad latch into `A`.
 - `DSPS` sends `A` through the segment PLA for display output.
+- The generated named disassembly now also carries a growing set of semantic
+  target labels for the more stable helper and caller entry points.
 
 Those points come from [mm5799emu.cpp](/Users/dan/Sinclair/mm5799emu.cpp).
 
@@ -695,6 +697,7 @@ Provisional helper notes:
     - therefore the routine returns with plain `RET` when `M(B)` is nonzero
     - and returns with `RETS` when `M(B)` is zero
   - So `CALL 000` is best interpreted as a common "test current RAM digit for zero" helper.
+  - In the named listing, this helper now appears as `TEST_CURRENT_DIGIT_ZERO`.
 - `CALL 011` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2081).
   - `LBL 1,5` followed by `RET`.
   - This is a tiny helper that loads a fixed RAM pointer.
@@ -705,6 +708,7 @@ Provisional helper notes:
     - then return through a short page-037 wrapper
   - The immediately following `LB 0,11` does not appear to define a second independent action here; in context it is best read as part of an overlapping entry-point layout.
   - So `CALL 020` now looks like another tiny fixed-pointer loader, specifically for RAM location `0,12`.
+  - In the named listing, this helper now appears as `LOAD_FLAG_A_PTR`.
 - `CALL 024` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2063).
   - This entry is now best read as a pure alias into `CALL 045`.
   - It immediately executes `GO 045`, so it is not an independent routine.
@@ -714,11 +718,13 @@ Provisional helper notes:
   - `RET`
   - This only makes sense if it is an iterative field walker that depends on `EXC+` incrementing `Bd` and skipping on wrap.
   - So `CALL 057` is very likely a standard "step through successive digits in a field" helper.
+  - In the named listing, this helper now appears as `WALK_MAIN_FIELD`.
 - `CALL 074` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2068).
   - `0TA`
   - `LB 0,5`
   - then into the `CALL 057` helper
   - This strongly suggests a field-clearing or zero-propagation wrapper.
+  - In the named listing, this helper now appears as `ZERO_MAIN_FIELD`.
 - `CALL 045` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2065).
   - The effective flow is:
     - `LB 2,15`
@@ -850,6 +856,9 @@ Working interpretation:
   - zero-test helpers
   - field-walk/field-clear helpers
 - Compared with pages 24 through 26, it now looks less like a direct `WORK_2_x` handler page and more like a higher-level flag/control normalizer that other pages can branch through.
+- In the current named listing, the broad entry and central state-update body are now labeled:
+  - `MODE_STATE_NORMALIZATION`
+  - `NORMALIZATION_UPDATE_LOOP`
 - This page is a stronger candidate for calculator mode transitions or state cleanup than for raw numeric computation.
 - In particular, it may participate in transitions among:
   - ordinary calculation state
@@ -884,6 +893,11 @@ Working interpretation:
   - `MODE_STATE_A` and `MODE_STATE_B` are probably not pure flag registers.
   - At least in some submodes they appear to carry digit-like or entry-like state that can be compared against `STEP_LO` and `STEP_HI`.
 - This is still an inference, but it is a stronger and more specific one than the earlier generic "table/dispatch" reading.
+- In the current named listing, the clearer local bodies are now labeled:
+  - `PROGRAM_STEP_COMPARE`
+  - `PROGRAM_STEP_REINIT`
+  - `RESET_PROGRAM_STEP_STAGE`
+  - `ADVANCE_PROGRAM_STEP_STAGE`
 
 Practical consequence:
 
@@ -918,6 +932,9 @@ Working interpretation:
   - use the page-037 flag helpers to prepare related state cells
   - then seed or reload working state including `WORK_2_14`
 - In the current program-control hypothesis, page 31 fits naturally as a "prepare state for learn/step/run style behavior" page.
+- In the current named listing, the two broad entry blocks are now labeled:
+  - `MODE_TRANSITION_PREP`
+  - `MODE_TRANSITION_STAGE`
 
 ## Page 35
 
@@ -947,6 +964,9 @@ Working interpretation:
   - page 5 handles the full two-digit step pair
   - page 35 handles a narrower test or update path dominated by `STEP_HI` and `MODE_STATE_B`
 - This is still provisional, but it is a better fit than treating page 35 as generic mode logic with no connection to program-step state.
+- In the current named listing, the broad page-35 blocks are now labeled:
+  - `STEP_HI_MODE_PATH`
+  - `STEP_HI_UPDATE_LOOP`
 
 ## `1,13` as a control-state cell
 
@@ -1931,6 +1951,17 @@ These are page-037 targets that already look central:
 - `CALL 045`: now looks like a shared bit-clear helper on a fixed status cell.
 - `CALL 057`: now looks like a repeated field-walk helper over consecutive digits, not a one-shot operation.
 - `CALL 064`, `CALL 066`, `CALL 074`: common utility calls used by several later pages.
+
+Several of these now also have direct semantic labels in the generated named
+listing, including:
+
+- `TEST_CURRENT_DIGIT_ZERO`
+- `LOAD_FLAG_A_PTR`
+- `WALK_MAIN_FIELD`
+- `ZERO_MAIN_FIELD`
+- `RIPPLE_INCREMENT_FROM_CURRENT_PTR`
+- `ZERO_FROM_CURRENT_PTR`
+- `SUBTRACT_WITH_BORROW`
 
 These names are still provisional. They should become labels only after tracing the corresponding page-037 code.
 
