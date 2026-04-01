@@ -271,6 +271,13 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     .ram-head, .ram-row-label {{
       color: var(--muted);
       text-align: center;
+      border-radius: 6px;
+      padding: 2px 0;
+    }}
+    .ram-head.current, .ram-row-label.current {{
+      background: #fde6a8;
+      color: #6a4a00;
+      font-weight: 700;
     }}
     .ram-cell {{
       width: 100%;
@@ -286,6 +293,8 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     .ram-cell.current {{
       background: var(--ram-hi);
       border-color: #d4a72a;
+      box-shadow: inset 0 0 0 2px #b47a00;
+      font-weight: 700;
     }}
     .right {{
       display: grid;
@@ -892,30 +901,42 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
 
     function renderStatus() {{
       const status = document.getElementById("status-strip");
+      const b = getB();
+      const row = b >> 4;
+      const col = b & 0xF;
+      const value = state.M[b] & 0xF;
       status.innerHTML = `
         <span>logical ${oct(getLogicalPC(), 4)}</span>
         <span>raw ${oct(getRawPC(), 4)}</span>
         <span>opcode ${oct(currentOpcode(), 3)}</span>
         <span>${OPCODES[currentOpcode()] || "?"}</span>
-        <span>B=${hex(getB(), 2)}</span>
+        <span>B=${hex(b, 2)}</span>
+        <span>RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}</span>
       `;
       document.getElementById("code-meta").textContent =
-        `PC ${oct(getLogicalPC(), 4)}  raw ${oct(getRawPC(), 4)}  B ${hex(getB(), 2)}`;
+        `PC ${oct(getLogicalPC(), 4)}  raw ${oct(getRawPC(), 4)}  B ${hex(b, 2)}  RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}`;
     }}
 
     function renderRam() {{
       const grid = document.getElementById("ram-grid");
       const current = getB();
+      const currentRow = current >> 4;
+      const currentCol = current & 0xF;
       let html = `<div></div>`;
       for (let col = 0; col < 16; col++) {{
-        html += `<div class="ram-head">${hex(col, 1)}</div>`;
+        const headCls = col === currentCol ? "ram-head current" : "ram-head";
+        html += `<div class="${{headCls}}">${hex(col, 1)}</div>`;
       }}
       for (let row = 0; row < 8; row++) {{
-        html += `<div class="ram-row-label">${hex(row, 1)}x</div>`;
+        const rowCls = row === currentRow ? "ram-row-label current" : "ram-row-label";
+        html += `<div class="${{rowCls}}">${hex(row, 1)}x</div>`;
         for (let col = 0; col < 16; col++) {{
           const idx = row * 16 + col;
           const cls = idx === current ? "ram-cell current" : "ram-cell";
-          html += `<input class="${{cls}}" data-ram="${{idx}}" value="${{hex(state.M[idx], 1)}}">`;
+          const title = idx === current
+            ? `B points here: RAM[${hex(row, 1)},${hex(col, 1)}]`
+            : `RAM[${hex(row, 1)},${hex(col, 1)}]`;
+          html += `<input class="${{cls}}" title="${{title}}" data-ram="${{idx}}" value="${{hex(state.M[idx], 1)}}">`;
         }}
       }}
       grid.innerHTML = html;
