@@ -1295,8 +1295,12 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       for (let i = 0; i < maxSteps; i++) {{
         const opcode = currentOpcode();
         const willExecuteReturn = !state.skip && (opcode === 0x40 || opcode === 0x41);
+        if (willExecuteReturn) {{
+          renderAll();
+          scrollToPc();
+          return;
+        }}
         stepOne(false);
-        if (willExecuteReturn) return;
       }}
       noteTrace(`step-until-return stopped after ${maxSteps} steps without executing RET/RETS`);
       renderTrace();
@@ -1323,6 +1327,17 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       setPCFromLogical(selectedLogical);
       renderAll();
       scrollToPc();
+    }});
+
+    document.addEventListener("keydown", (event) => {{
+      const target = event.target;
+      const tag = target && target.tagName ? target.tagName.toUpperCase() : "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || (target && target.isContentEditable)) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key === "s" || event.key === "S") {{
+        event.preventDefault();
+        stepOne();
+      }}
     }});
 
     resetState();
