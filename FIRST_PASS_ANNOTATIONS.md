@@ -739,6 +739,11 @@ Reference: [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sincla
 
 Provisional helper notes:
 
+- Caution on helper naming:
+  - The earlier generated listing treated many page-37 entries as simple pointer loaders.
+  - That is too strong if the real MM5799 only honors the first `LB` in a sequence, as your `sinclaircambridgeprogrammable.dan.txt` assumes from the National Semiconductor documentation.
+  - So for several page-37 entries, behavior-level names like `CLEAR_SCAN_STATE`, `CLEAR_2_15`, `SHIFT_LEFT_FLAG_A`, or `INCREMENT_FLAG_B` are currently more credible than neutral `LOAD_*` names.
+
 - `CALL 000` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2049).
   - This is not a normal local helper body.
   - It immediately performs a long transfer.
@@ -753,18 +758,15 @@ Provisional helper notes:
     - therefore the routine returns with plain `RET` when `M(B)` is nonzero
     - and returns with `RETS` when `M(B)` is zero
   - So `CALL 000` is best interpreted as a common "test current RAM digit for zero" helper.
-  - In the named listing, this helper now appears as `TEST_CURRENT_DIGIT_ZERO`.
+  - In the hand-edited `sinclaircambridgeprogrammable.dan.txt` listing, the same behavior is reflected by the name `SKIP_IF_MEM_B_IS_ZERO`.
 - `CALL 011` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2081).
   - `LBL 1,5` followed by `RET`.
   - This is a tiny helper that loads a fixed RAM pointer.
 - `CALL 020` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2051).
   - Its control flow is easy to misread unless the LFSR page-word addressing is kept in mind.
-  - In effect it behaves like:
-    - `LB 0,12`
-    - then return through a short page-037 wrapper
-  - The immediately following `LB 0,11` does not appear to define a second independent action here; in context it is best read as part of an overlapping entry-point layout.
-  - So `CALL 020` now looks like another tiny fixed-pointer loader, specifically for RAM location `0,12`.
-  - In the named listing, this helper now appears as `LOAD_FLAG_A_PTR`.
+  - Under the earlier model it looked like a tiny `LB 0,12` pointer loader.
+  - Under the stricter "first `LB` in a sequence wins" model reflected in `sinclaircambridgeprogrammable.dan.txt`, the same entry is better read as a small state operation on the `FLAG_A` field.
+  - In the hand-edited listing this now appears as `SHIFT_LEFT_FLAG_A`, which is currently the better working name.
 - `CALL 024` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2063).
   - This entry is now best read as a pure alias into `CALL 045`.
   - It immediately executes `GO 045`, so it is not an independent routine.
@@ -774,14 +776,14 @@ Provisional helper notes:
   - `RET`
   - This is not a side-effect-free field walker.
   - Because `EXC+` exchanges `A` with the current RAM digit before incrementing `Bd`, the helper shifts or propagates a value through the field one digit at a time and stops when the digit index wraps.
-  - So `CALL 057` is better read as a standard "shift/propagate across the main field" helper.
-  - In the named listing, this helper now appears as `SHIFT_MAIN_FIELD`.
+  - So `CALL 057` is better read as a standard right-shift / propagate helper across the selected field.
+  - In the hand-edited listing this now appears as `SHIFT_REGISTER_RIGHT`.
 - `CALL 074` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2068).
   - `0TA`
   - `LB 0,5`
   - then into the `CALL 057` helper
   - Since `0TA` seeds `A` with zero before entering the same shifting helper, this now looks more like a zero-fill shift than a simple "clear every digit independently" wrapper.
-  - In the named listing, this helper now appears as `SHIFT_ZERO_INTO_MAIN_FIELD`.
+  - In the hand-edited listing this now appears as `SHIFT_MAIN_RIGHT`.
 - `CALL 045` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2065).
   - The effective flow is:
     - `LB 2,15`
@@ -2012,15 +2014,18 @@ These are page-037 targets that already look central:
 Several of these now also have direct semantic labels in the generated named
 listing, including:
 
-- `TEST_CURRENT_DIGIT_ZERO`
-- `LOAD_FLAG_A_PTR`
-- `SHIFT_MAIN_FIELD`
-- `SHIFT_ZERO_INTO_MAIN_FIELD`
-- `RIPPLE_INCREMENT_FROM_CURRENT_PTR`
+- `SKIP_IF_MEM_B_IS_ZERO`
+- `SHIFT_LEFT_FLAG_A`
+- `SHIFT_REGISTER_RIGHT`
+- `SHIFT_MAIN_RIGHT`
+- `ADD_ONE_ALT`
 - `ZERO_FROM_CURRENT_PTR`
 - `SUBTRACT_WITH_BORROW`
 
-These names are still provisional. They should become labels only after tracing the corresponding page-037 code.
+These names are still provisional. The main uncertainty now is not just control
+flow but helper semantics: if only the first `LB` in a sequence counts, several
+old `LOAD_*` names are too weak and several new operation-style names may be
+closer to the hardware truth.
 
 ## Priority next steps
 
