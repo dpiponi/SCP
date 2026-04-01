@@ -708,7 +708,8 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       return v & 0xF;
     }}
 
-    function stepOne() {{
+    function stepOne(syncInputs = true) {{
+      if (syncInputs) syncUiToState();
       selectedLogical = null;
       const beforeLogical = getLogicalPC();
       const beforeRaw = getRawPC();
@@ -1109,17 +1110,28 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       renderTrace();
     }}
 
-    function parseOctal(text) {{
+    function parseNumber(text, fallbackBase = 10) {{
       const cleaned = text.trim();
-      return cleaned === "" ? 0 : parseInt(cleaned, 8);
+      if (cleaned === "") return 0;
+      if (/^[-+]?0x[0-9a-f]+$/i.test(cleaned)) return parseInt(cleaned, 16);
+      if (/^[-+]?0o[0-7]+$/i.test(cleaned)) {{
+        const sign = cleaned[0] === "-" ? -1 : 1;
+        const digits = cleaned.replace(/^[-+]?0o/i, "");
+        return sign * parseInt(digits, 8);
+      }}
+      if (/[a-f]/i.test(cleaned)) return parseInt(cleaned, 16);
+      return parseInt(cleaned, fallbackBase);
     }}
 
     function parseHex(text) {{
-      const cleaned = text.trim();
-      return cleaned === "" ? 0 : parseInt(cleaned, 16);
+      return parseNumber(text, 16);
     }}
 
-    function applyEdits() {{
+    function parseOctal(text) {{
+      return parseNumber(text, 8);
+    }}
+
+    function syncUiToState() {{
       const regInputs = document.querySelectorAll("[data-reg]");
       for (const input of regInputs) {{
         const name = input.dataset.reg;
@@ -1179,7 +1191,10 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         const name = input.dataset.flag;
         state[name] = input.checked ? 1 : 0;
       }}
+    }}
 
+    function applyEdits() {{
+      syncUiToState();
       renderAll();
       scrollToPc();
     }}
@@ -1192,8 +1207,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
 
     function stepMany(count) {{
+      syncUiToState();
       for (let i = 0; i < count; i++) {{
-        stepOne();
+        stepOne(false);
       }}
     }}
 

@@ -859,7 +859,11 @@
       const root = document.getElementById("disasm");
       const currentLogical = getLogicalPC();
       const escapeHtml = (text) =>
-        (text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        (text || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
       root.innerHTML = DISASM_LINES.map((line, index) => {
         const classes = ["line", line.type];
         if (line.type === "instr" && line.logical === currentLogical) classes.push("current");
