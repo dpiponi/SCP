@@ -716,15 +716,16 @@ Provisional helper notes:
   - `EXC+`
   - `CALL 057`
   - `RET`
-  - This only makes sense if it is an iterative field walker that depends on `EXC+` incrementing `Bd` and skipping on wrap.
-  - So `CALL 057` is very likely a standard "step through successive digits in a field" helper.
-  - In the named listing, this helper now appears as `WALK_MAIN_FIELD`.
+  - This is not a side-effect-free field walker.
+  - Because `EXC+` exchanges `A` with the current RAM digit before incrementing `Bd`, the helper shifts or propagates a value through the field one digit at a time and stops when the digit index wraps.
+  - So `CALL 057` is better read as a standard "shift/propagate across the main field" helper.
+  - In the named listing, this helper now appears as `SHIFT_MAIN_FIELD`.
 - `CALL 074` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2068).
   - `0TA`
   - `LB 0,5`
   - then into the `CALL 057` helper
-  - This strongly suggests a field-clearing or zero-propagation wrapper.
-  - In the named listing, this helper now appears as `ZERO_MAIN_FIELD`.
+  - Since `0TA` seeds `A` with zero before entering the same shifting helper, this now looks more like a zero-fill shift than a simple "clear every digit independently" wrapper.
+  - In the named listing, this helper now appears as `SHIFT_ZERO_INTO_MAIN_FIELD`.
 - `CALL 045` enters at [analysis/sinclaircambridgeprogrammable.disasm.txt](/Users/dan/Sinclair/analysis/sinclaircambridgeprogrammable.disasm.txt#L2065).
   - The effective flow is:
     - `LB 2,15`
@@ -1949,7 +1950,7 @@ These are page-037 targets that already look central:
 - `CALL 020`: now also looks like a fixed RAM-pointer loader, probably for field `0,12`.
 - `CALL 024`: now looks like an alias entry into `CALL 045`.
 - `CALL 045`: now looks like a shared bit-clear helper on a fixed status cell.
-- `CALL 057`: now looks like a repeated field-walk helper over consecutive digits, not a one-shot operation.
+- `CALL 057`: now looks like a repeated shift/propagate helper over the main field, not a one-shot operation.
 - `CALL 064`, `CALL 066`, `CALL 074`: common utility calls used by several later pages.
 
 Several of these now also have direct semantic labels in the generated named
@@ -1957,8 +1958,8 @@ listing, including:
 
 - `TEST_CURRENT_DIGIT_ZERO`
 - `LOAD_FLAG_A_PTR`
-- `WALK_MAIN_FIELD`
-- `ZERO_MAIN_FIELD`
+- `SHIFT_MAIN_FIELD`
+- `SHIFT_ZERO_INTO_MAIN_FIELD`
 - `RIPPLE_INCREMENT_FROM_CURRENT_PTR`
 - `ZERO_FROM_CURRENT_PTR`
 - `SUBTRACT_WITH_BORROW`
