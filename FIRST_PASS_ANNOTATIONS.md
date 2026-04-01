@@ -242,13 +242,13 @@ What can be said safely:
 
 - `0,5` is especially suspect as a display field anchor, because:
   - page 2 selects it directly inside the DS8874-facing loop
-  - page 37's `CALL 057` field-walk helper is built on `LB 0,5` plus repeated `EXC+`
-  - page 37's `CALL 074` zeroing wrapper also starts from `LB 0,5`
-- That combination makes `0,5` a strong candidate for the base of a repeatedly walked visible numeric field.
+  - page 37's `CALL 057` shift helper is built on `LB 0,5` plus repeated `EXC+`
+  - page 37's `CALL 074` zero-fill shift wrapper also starts from `LB 0,5`
+- That combination makes `0,5` a strong candidate for the base of a repeatedly shifted visible numeric field.
 
 Likely field extent:
 
-- If `CALL 057` really is the standard digit walker, then starting from `LB 0,5` and advancing with `EXC+` until wrap implies a natural field spanning:
+- If `CALL 057` really is the standard field-shift helper, then starting from `LB 0,5` and advancing with `EXC+` until wrap implies a natural field spanning:
   - `0,5` through `0,15`
 - That is an 11-digit internal field, not a 9-digit display-sized field.
 - Safest current reading:
@@ -536,7 +536,33 @@ Refinement:
   - `SCAN_STATE`
   - `MODE_STATE_C`
   - `CALL 055` on the `WORK_2_12` side
+- Its central `EXC+ ; EXC` pair should now be read as real state movement, not passive pointer stepping:
+  - `LB SCAN_STATE`
+  - `EXC+`
+  - `EXC`
+  - then explicit bit-8 set/reset work around the neighboring control cell
 - So page 22 still matters for understanding decimal-like movement, but it is probably closer to entry/edit-state handling than mantissa normalization.
+
+Targeted `EXC+` audit:
+
+- Page 3 contains a bank-copy loop, not a harmless iterator:
+  - `LB MODE_STATE_A`
+  - `MTA 1`
+  - `EXC+ 1`
+  - `GO ...`
+  - With Sean Riddle's emulator semantics, `MTA 1` loads the current digit and toggles the register bank, while `EXC+ 1` writes that digit into the paired base-bank cell and advances.
+  - So this loop is best read as copying a short bank-1 control field into the corresponding base-bank field, not merely "walking" over memory.
+- Page 4 contains an insertion/shuttle step into `MAIN_FIELD`:
+  - `LB SCAN_STATE`
+  - `MTA`
+  - `LB MAIN_FIELD`
+  - `EXC+`
+  - `EXC`
+  - That sequence pushes the current `SCAN_STATE` nibble into the front of `MAIN_FIELD`, carries the displaced first field digit forward in `A`, and immediately exchanges it into the next position.
+  - So page 4 should be read as doing real field movement at the display/input boundary, not just inspecting `MAIN_FIELD`.
+- Page 22 contains the same kind of stateful exchange logic on the control side:
+  - its `EXC+ ; EXC` pair moves data between `SCAN_STATE` and the adjacent special-entry latch neighborhood before the explicit `SM 8` / `RSM 8` operations
+  - so the page is doing staged state transfer as well as bit manipulation
 
 - Page 20 is the cleaner numeric-adjacent normalization candidate.
 - It:

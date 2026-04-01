@@ -101,7 +101,7 @@ P01_W024:
 0120 @0145  006  MTA           
 0121 @0162  023  LBL           
 0122 @0171  164  DATA    7,4
-0123 @0174  257  CALL           SHIFT_MAIN_FIELD ; repeated CALL 057 pattern now reads as field walking over fixed RAM regions
+0123 @0174  257  CALL           SHIFT_MAIN_FIELD ; repeated CALL 057 pattern now reads as repeated field shifting over fixed RAM regions
 0124 @0136  257  CALL           SHIFT_MAIN_FIELD
 0125 @0157  023  LBL           
 0126 @0127  144  DATA    6,4
@@ -260,11 +260,11 @@ P03_W057:
 0326 @0327  200  DATA    2,00  ; raw LG target byte -> SUB_P01_W000
 P03_W013:
 0327 @0313  262  CALL           LOAD_FLAG_C_PTR
-0330 @0305  036  LB MODE_STATE_A
-P03_W042:
+0330 @0305  036  LB MODE_STATE_A ; MODE_STATE_A pointer seed for the bank1-to-base copy loop below
+COPY_BANK1_TO_BASE_LOOP:
 0331 @0342  026  MTA 1         
 0332 @0361  031  EXC+ 1        
-0333 @0370  342  GO             P03_W042
+0333 @0370  342  GO             COPY_BANK1_TO_BASE_LOOP
 0334 @0334  023  LBL           
 0335 @0316  164  DATA    7,4
 0336 @0347  006  MTA           
@@ -323,7 +323,7 @@ P04_W000:
 0412 @0406  337  GO             P04_W037
 0413 @0443  211  CALL           LOAD_ANNUNCIATOR_PTR
 0414 @0421  106  TM 4          
-0415 @0450  332  GO             P04_W032
+0415 @0450  332  GO             INSERT_SCAN_STATE_INTO_MAIN_FIELD
 P04_W024:
 0416 @0424  023  LBL           
 0417 @0412  026  DATA    1,6
@@ -336,7 +336,7 @@ P04_W024:
 0426 @0427  241  CALL           INCREMENT_ANNUNCIATOR
 0427 @0413  034  LB SCAN_STATE 
 0430 @0405  006  MTA           
-0431 @0442  236  CALL           P37_W036
+0431 @0442  236  CALL           LOAD_MAIN_FIELD_PTR
 0432 @0461  014  LB FLAG_A     
 0433 @0470  007  EXC           
 0434 @0434  326  GO             P04_W026
@@ -350,8 +350,8 @@ P04_W016:
 0443 @0451  325  GO             P04_W025
 P04_W064:
 0444 @0464  326  GO             P04_W026
-P04_W032:
-0445 @0432  034  LB SCAN_STATE 
+INSERT_SCAN_STATE_INTO_MAIN_FIELD:
+0445 @0432  034  LB SCAN_STATE  ; SCAN_STATE is inserted into MAIN_FIELD with an EXC+ / EXC shuttle pair
 0446 @0455  006  MTA           
 0447 @0466  012  LB MAIN_FIELD 
 0450 @0473  011  EXC+          
@@ -1309,12 +1309,12 @@ P22_W000:
 P22_W006:
 2212 @2206  111  SM 1          
 2213 @2243  034  LB SCAN_STATE 
-P22_W021:
+SHIFT_SCAN_STATE_TO_SPECIAL_LATCH:
 2214 @2221  160  LM 0          
 2215 @2250  147  LG             LGCALL P21_W037
 2216 @2224  237  DATA    2,37  ; raw LG target byte -> P21_W037
 2217 @2212  034  LB SCAN_STATE 
-2220 @2245  011  EXC+          
+2220 @2245  011  EXC+           ; EXC+ here is part of a staging shuffle between SCAN_STATE and the neighboring special latch
 2221 @2262  000  NOP           
 2222 @2271  007  EXC           
 2223 @2274  130  ADX 8         
@@ -1401,8 +1401,8 @@ P23_W074:
 2325 @2357  105  TM 2          
 2326 @2327  156  LG             LGGO   P03_W045
 2327 @2313  345  DATA    3,45  ; raw LG target byte -> P03_W045
-2330 @2305  146  LG             LGGO   P22_W021
-2331 @2342  121  DATA    1,21  ; raw LG target byte -> P22_W021
+2330 @2305  146  LG             LGGO   SHIFT_SCAN_STATE_TO_SPECIAL_LATCH
+2331 @2342  121  DATA    1,21  ; raw LG target byte -> SHIFT_SCAN_STATE_TO_SPECIAL_LATCH
 P23_W061:
 2332 @2361  033  LB SELECT_STATE
 2333 @2370  107  TM 8          
@@ -2321,8 +2321,8 @@ ZERO_FROM_CURRENT_PTR:
 3722 @3771  317  GO             ZERO_FIELD_BACKWARD
 SHIFT_ZERO_INTO_MAIN_FIELD:
 3723 @3774  060  0TA           
-P37_W036:
-3724 @3736  012  LB MAIN_FIELD  ; helper path anchored on MAIN_FIELD for digit walking
+LOAD_MAIN_FIELD_PTR:
+3724 @3736  012  LB MAIN_FIELD  ; helper path selecting MAIN_FIELD before the shift/propagate loop
 SHIFT_MAIN_FIELD:
 3725 @3757  011  EXC+          
 3726 @3727  257  CALL           SHIFT_MAIN_FIELD
