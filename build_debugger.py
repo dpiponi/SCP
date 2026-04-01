@@ -256,6 +256,12 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       padding: 4px 8px;
       border-radius: 999px;
     }}
+    .status-strip span.pending-skip {{
+      background: #ffe5c9;
+      border-color: #d58b3f;
+      color: #7a3f00;
+      font-weight: 700;
+    }}
     .ram-wrap {{
       padding: 0 14px 14px;
       overflow: auto;
@@ -849,7 +855,8 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             break;
         }}
         if (notLB) state.wasLB = false;
-        noteTrace(`${oct(beforeLogical, 4)} @${oct(beforeRaw, 4)}  ${opName}`);
+        const suffix = state.skip ? "  [skip armed]" : "";
+        noteTrace(`${oct(beforeLogical, 4)} @${oct(beforeRaw, 4)}  ${opName}${suffix}`);
       }}
 
       state.Pw = nextpc & 0x3F;
@@ -919,6 +926,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         <span>${OPCODES[currentOpcode()] || "?"}</span>
         <span>B=${hex(b, 2)}</span>
         <span>RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}</span>
+        ${state.skip ? `<span class="pending-skip">next instruction will be skipped</span>` : ""}
       `;
       document.getElementById("code-meta").textContent =
         `PC ${oct(getLogicalPC(), 4)}  raw ${oct(getRawPC(), 4)}  B ${hex(b, 2)}  RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}`;

@@ -746,6 +746,7 @@
 
       state.Pw = nextpc & 0x3F;
       renderAll();
+      scrollToPc();
     }
 
     function renderRegisterGrid() {
@@ -938,6 +939,7 @@
       }
 
       renderAll();
+      scrollToPc();
     }
 
     function scrollToPc() {
