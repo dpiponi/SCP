@@ -517,10 +517,10 @@ P06_W056:
 0656 @0646  017  LB FLAG_C     
 P06_W063:
 0657 @0663  077  LB EXP_STATE  
-P06_W031:
-0660 @0631  066  MTA 3         
+COPY_EXP_STATE_TO_BASE_BACKWARD:
+0660 @0631  066  MTA 3          ; reverse copy loop from EXP_STATE into the paired base-bank field
 0661 @0654  070  EXC- 3        
-0662 @0626  331  GO             P06_W031
+0662 @0626  331  GO             COPY_EXP_STATE_TO_BASE_BACKWARD
 P06_W053:
 0663 @0653  212  CALL           LOAD_SCAN_STATE_PTR
 0664 @0625  033  LB SELECT_STATE
@@ -1718,7 +1718,7 @@ P27_W071:
 NORMALIZATION_UPDATE_LOOP:
 2733 @2770  272  CALL           SWAP_FLAG_A_FIELD1_BACKWARD
 2734 @2734  014  LB FLAG_A     
-2735 @2716  233  CALL           P37_W033
+2735 @2716  233  CALL           COPY_CURRENT_TO_FIELD2_BACKWARD
 2736 @2747  225  CALL           LOAD_WORK_2_5_PTR
 2737 @2723  015  LB FLAG_013   
 2740 @2711  006  MTA           
@@ -1828,11 +1828,11 @@ P30_W072:
 3067 @3072  154  LG             LGCALL SUB_P07_W000
 3070 @3075  200  DATA    2,00  ; raw LG target byte -> SUB_P07_W000
 3071 @3076  077  LB EXP_STATE   ; rare EXP_STATE access; likely scientific-entry/display-state related
-P30_W077:
-3072 @3077  067  EXC 3         
+SWAP_EXP_STATE_BACKWARD:
+3072 @3077  067  EXC 3          ; reverse swap loop between EXP_STATE and the paired base-bank field
 3073 @3037  067  EXC 3         
 3074 @3017  010  EXC-          
-3075 @3007  377  GO             P30_W077
+3075 @3007  377  GO             SWAP_EXP_STATE_BACKWARD
 3076 @3003  154  LG             LGGO   P06_W053
 3077 @3001  153  DATA    1,53  ; raw LG target byte -> P06_W053
 
@@ -2359,10 +2359,10 @@ LOAD_WORK_2_15_PTR_ALT2:
 3752 @3756  057  LB WORK_2_15  
 P37_W067:
 3753 @3767  017  LB FLAG_C     
-P37_W033:
-3754 @3733  046  MTA 2         
+COPY_CURRENT_TO_FIELD2_BACKWARD:
+3754 @3733  046  MTA 2          ; reverse copy helper from the current field into field 2
 3755 @3715  050  EXC- 2        
-3756 @3746  233  CALL           P37_W033
+3756 @3746  233  CALL           COPY_CURRENT_TO_FIELD2_BACKWARD
 3757 @3763  100  RET           
 SUB_P37_W031:
 3760 @3731  052  LB WORK_2_5    ; helper path on the WORK_2_5 / WORK_2_14 side of the staging family

@@ -564,6 +564,36 @@ Targeted `EXC+` audit:
   - its `EXC+ ; EXC` pair moves data between `SCAN_STATE` and the adjacent special-entry latch neighborhood before the explicit `SM 8` / `RSM 8` operations
   - so the page is doing staged state transfer as well as bit manipulation
 
+Targeted `EXC-` audit:
+
+- `EXC-` sites are not all the same. The safe split now is:
+  - reverse scan helpers such as `SCAN_BACK_OVER_ZEROES`
+  - reverse swap helpers such as `SWAP_FIELD1_BACKWARD` and `SWAP_FIELD2_BACKWARD`
+  - reverse zero-fill helpers such as `ZERO_FIELD_BACKWARD`
+  - and a smaller set of reverse copy/shuttle loops
+- Page 6 contains a clear reverse copy on the `EXP_STATE` side:
+  - `LB EXP_STATE`
+  - `MTA 3`
+  - `EXC- 3`
+  - `GO ...`
+  - With the emulator semantics, that reads as "copy the current `EXP_STATE` digit into the paired base-bank field, step backward, repeat."
+  - In the named listing this now appears as `COPY_EXP_STATE_TO_BASE_BACKWARD`.
+- Page 30 contains the matching reverse swap form:
+  - `LB EXP_STATE`
+  - `EXC 3`
+  - `EXC 3`
+  - `EXC-`
+  - `GO ...`
+  - That is best read as a backward swap between the `EXP_STATE` field and the paired base-bank field, not a passive formatting walk.
+  - In the named listing this now appears as `SWAP_EXP_STATE_BACKWARD`.
+- Page 37 also contains a generic reverse copier:
+  - `MTA 2`
+  - `EXC- 2`
+  - `CALL ...`
+  - `RET`
+  - Since `MTA 2` loads from the currently selected field and then toggles to bank 2 before `EXC- 2`, the helper copies the current field into the paired bank-2 field while walking backward.
+  - In the named listing this now appears as `COPY_CURRENT_TO_FIELD2_BACKWARD`.
+
 - Page 20 is the cleaner numeric-adjacent normalization candidate.
 - It:
   - seeds a fixed `2,7` pattern
