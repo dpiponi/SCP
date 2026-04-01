@@ -1337,6 +1337,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       if (event.key === "s" || event.key === "S") {{
         event.preventDefault();
         stepOne();
+      }} else if (event.key === "r" || event.key === "R") {{
+        event.preventDefault();
+        stepUntilReturn();
       }}
     }});
 
