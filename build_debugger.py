@@ -520,6 +520,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           </div>
           <div class="toolbar">
             <button class="primary" id="step-btn">Step</button>
+            <button id="stepover-btn">To RET</button>
             <button id="step10-btn">Step 10</button>
             <button id="run100-btn">Run 100</button>
             <button id="reset-btn">Reset</button>
@@ -1213,7 +1214,20 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       }}
     }}
 
+    function stepUntilReturn(maxSteps = 10000) {{
+      syncUiToState();
+      for (let i = 0; i < maxSteps; i++) {{
+        const opcode = currentOpcode();
+        const willExecuteReturn = !state.skip && (opcode === 0x40 || opcode === 0x41);
+        stepOne(false);
+        if (willExecuteReturn) return;
+      }}
+      noteTrace(`step-until-return stopped after ${maxSteps} steps without executing RET/RETS`);
+      renderTrace();
+    }}
+
     document.getElementById("step-btn").addEventListener("click", () => stepOne());
+    document.getElementById("stepover-btn").addEventListener("click", () => stepUntilReturn());
     document.getElementById("step10-btn").addEventListener("click", () => stepMany(10));
     document.getElementById("run100-btn").addEventListener("click", () => stepMany(100));
     document.getElementById("reset-btn").addEventListener("click", () => resetState());
