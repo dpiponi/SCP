@@ -854,6 +854,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
 
       state.Pw = nextpc & 0x3F;
       renderAll();
+      scrollToPc();
     }}
 
     function renderRegisterGrid() {{
@@ -1046,6 +1047,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       }}
 
       renderAll();
+      scrollToPc();
     }}
 
     function scrollToPc() {{
