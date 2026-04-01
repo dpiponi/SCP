@@ -367,6 +367,8 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       font-family: var(--font-code);
       font-size: 13px;
       margin-top: 8px;
+      min-height: 34px;
+      align-items: flex-start;
     }}
     .status-strip span {{
       background: #f5eee1;
@@ -379,6 +381,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       border-color: #d58b3f;
       color: #7a3f00;
       font-weight: 700;
+    }}
+    .status-strip span.pending-skip.idle {{
+      visibility: hidden;
     }}
     .ram-wrap {{
       padding: 0 14px 14px;
@@ -1063,7 +1068,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         <span>${OPCODES[currentOpcode()] || "?"}</span>
         <span>B=${hex(b, 2)}</span>
         <span>RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}</span>
-        ${state.skip ? `<span class="pending-skip">next instruction will be skipped</span>` : ""}
+        <span class="pending-skip${state.skip ? "" : " idle"}">next instruction will be skipped</span>
       `;
       document.getElementById("code-meta").textContent =
         `PC ${oct(getLogicalPC(), 4)}  raw ${oct(getRawPC(), 4)}  B ${hex(b, 2)}  RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}`;
