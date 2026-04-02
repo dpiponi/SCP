@@ -617,12 +617,12 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             <button id="apply-btn">Apply Edits</button>
             <button id="goto-pc-btn">Scroll To PC</button>
             <label class="toolbar-option" for="animate-toggle">
-              <input type="checkbox" id="animate-toggle">
+              <input type="checkbox" id="animate-toggle" checked>
               <span>Animate</span>
             </label>
             <label class="toolbar-option" for="animate-delay">
               <span>Delay ms</span>
-              <input type="number" id="animate-delay" min="10" max="2000" step="10" value="80">
+              <input type="number" id="animate-delay" min="0" max="2000" step="10" value="0">
             </label>
           </div>
           <div class="status-strip" id="status-strip"></div>
