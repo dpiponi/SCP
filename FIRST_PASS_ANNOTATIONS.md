@@ -952,11 +952,12 @@ Working interpretation:
   - `MODE_STATE_A` and `MODE_STATE_B` are probably not pure flag registers.
   - At least in some submodes they appear to carry digit-like or entry-like state that can be compared against `STEP_LO` and `STEP_HI`.
 - This is still an inference, but it is a stronger and more specific one than the earlier generic "table/dispatch" reading.
-- In the current named listing, the clearer local bodies are now labeled:
+- In the current named listing, the clearer local bodies are now labeled a bit more conservatively:
   - `PROGRAM_STEP_COMPARE`
-  - `PROGRAM_STEP_REINIT`
-  - `RESET_PROGRAM_STEP_STAGE`
-  - `ADVANCE_PROGRAM_STEP_STAGE`
+  - `PROGRAM_DIGIT_REINIT`
+  - `SHIFT_AND_REPACK_STAGE`
+  - `RIPPLE_ADD_AND_SHIFT_STAGE`
+- This is an intentional retreat from earlier over-specific names. The local helper at page-37 raw word `016` is just an entry into the multi-digit page-36 add/ripple routine, so names like "advance program step" were stronger than the code itself justifies.
 
 Practical consequence:
 
@@ -1024,8 +1025,8 @@ Working interpretation:
   - page 35 handles a narrower test or update path dominated by `STEP_HI` and `MODE_STATE_B`
 - This is still provisional, but it is a better fit than treating page 35 as generic mode logic with no connection to program-step state.
 - In the current named listing, the broad page-35 blocks are now labeled:
-  - `STEP_HI_MODE_PATH`
-  - `STEP_HI_UPDATE_LOOP`
+  - `REGISTER_1_9_MODE_PATH`
+  - `REGISTER_1_9_UPDATE_LOOP`
 
 ## `1,13` as a control-state cell
 
