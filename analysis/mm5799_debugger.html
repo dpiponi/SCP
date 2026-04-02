@@ -171,6 +171,24 @@
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 8px;
     }
+    .keypad-controls {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .keypad-status {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-family: var(--font-code);
+      font-size: 12px;
+    }
+    .keypad-status span {
+      background: #f5eee1;
+      border: 1px solid var(--line);
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
     .key {
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -186,6 +204,10 @@
       border-color: #d59b28;
       box-shadow: inset 0 0 0 1px rgba(181, 111, 0, 0.18);
       font-weight: 700;
+    }
+    .key.scanned {
+      border-color: #4b7db8;
+      box-shadow: inset 0 0 0 1px rgba(67, 119, 184, 0.18);
     }
     .key-meta {
       color: var(--muted);
@@ -466,6 +488,15 @@
             `TKB`/`READ` currently see held keys by row `D=3..8` and column bits `K1=1`, `K2=2`, `K3=4`, `K4=8`.
           </div>
           <div class="keypad-wrap" id="keypad"></div>
+          <div class="keypad-controls">
+            <label class="toolbar-option" for="keypad-row-mode">
+              <span>Row decode</span>
+              <select id="keypad-row-mode">
+                <option value="direct">D = out number</option>
+                <option value="offset">D+3 = out number</option>
+              </select>
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -548,6 +579,16 @@
     const breakpoints = new Set();
     const pressedKeys = new Set();
 
+    function keypadRowMode() {
+      const el = document.getElementById("keypad-row-mode");
+      return el ? el.value : "direct";
+    }
+
+    function decodedScanRow(d) {
+      const value = d & 0xF;
+      return keypadRowMode() === "offset" ? value + 3 : value;
+    }
+
     function oct(n, width = 0) {
       const value = (n >>> 0).toString(8);
       return value.padStart(width, "0");
@@ -596,11 +637,11 @@
     }
 
     function kinput(_d) {
-      const d = _d & 0xF;
+      const row = decodedScanRow(_d);
       let mask = 0;
       for (const keyId of pressedKeys) {
         const key = KEY_BY_ID[keyId];
-        if (key && key.row === d) mask |= key.bit;
+        if (key && key.row === row) mask |= key.bit;
       }
       return mask & 0xF;
     }
@@ -1049,13 +1090,21 @@
 
     function renderKeypad() {
       const root = document.getElementById("keypad");
+      const scanRow = decodedScanRow(state.D);
+      const kMask = kinput(state.D);
       const renderKey = (key) => {
         const active = pressedKeys.has(key.id) ? " active" : "";
-        return `<button class="key${active}" type="button" data-key="${key.id}" title="row ${key.row}, mask ${hex(key.bit, 1)}">${key.label}</button>`;
+        const scanned = key.row === scanRow ? " scanned" : "";
+        return `<button class="key${active}${scanned}" type="button" data-key="${key.id}" title="row ${key.row}, mask ${hex(key.bit, 1)}">${key.label}</button>`;
       };
       const top = KEYS.filter((key) => key.group === "top").map(renderKey).join("");
       const main = KEYS.filter((key) => key.group === "main").map(renderKey).join("");
       root.innerHTML = `
+        <div class="keypad-status">
+          <span>D=${hex(state.D, 1)}</span>
+          <span>scan row=${scanRow}</span>
+          <span>K=${hex(kMask, 1)}</span>
+        </div>
         <div class="keypad-top">${top}</div>
         <div class="keypad-grid">${main}</div>
         <div class="key-meta">Held keys are returned by kinput(D) when the CPU scans that row.</div>
@@ -1409,6 +1458,10 @@
       const keyId = keyEl.dataset.key;
       if (pressedKeys.has(keyId)) pressedKeys.delete(keyId);
       else pressedKeys.add(keyId);
+      renderKeypad();
+    });
+
+    document.getElementById("keypad-row-mode").addEventListener("change", () => {
       renderKeypad();
     });
 
