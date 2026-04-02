@@ -235,7 +235,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
     .app {{
       display: grid;
-      grid-template-columns: 420px 1fr;
+      grid-template-columns: 420px 280px 1fr;
       height: 100vh;
       gap: 12px;
       padding: 12px;
@@ -250,6 +250,13 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     .left {{
       display: grid;
       grid-template-rows: auto auto auto 1fr;
+      gap: 12px;
+      min-height: 0;
+      overflow: hidden;
+    }}
+    .middle {{
+      display: grid;
+      grid-template-rows: 1fr;
       gap: 12px;
       min-height: 0;
       overflow: hidden;
@@ -579,6 +586,10 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         order: 2;
         overflow: visible;
       }}
+      .middle {{
+        order: 3;
+        overflow: visible;
+      }}
       .right {{
         order: 1;
         min-height: 60vh;
@@ -638,17 +649,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
 
       <div class="panel">
         <div class="section">
-          <strong>Keypad</strong>
-          <div class="small-note">
-            Best-effort keypad wiring from the documented matrix. Click to hold/release a key.
-            `TKB`/`READ` currently see held keys by row `D=3..8` and column bits `K1=1`, `K2=2`, `K3=4`, `K4=8`.
-          </div>
-          <div class="keypad-wrap" id="keypad"></div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="section">
           <strong>RAM (128 nibbles)</strong>
           <div class="small-note">
             Displayed as 8 rows × 16 columns to match the emulator's 128-nibble working RAM.
@@ -657,6 +657,19 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         </div>
         <div class="ram-wrap">
           <div class="ram-grid" id="ram-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="middle">
+      <div class="panel">
+        <div class="section">
+          <strong>Keypad</strong>
+          <div class="small-note">
+            Best-effort keypad wiring from the documented matrix. Click to hold/release a key.
+            `TKB`/`READ` currently see held keys by row `D=3..8` and column bits `K1=1`, `K2=2`, `K3=4`, `K4=8`.
+          </div>
+          <div class="keypad-wrap" id="keypad"></div>
         </div>
       </div>
     </div>
