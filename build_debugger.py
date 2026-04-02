@@ -698,6 +698,8 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
               <select id="keypad-row-mode">
                 <option value="direct">D = out number</option>
                 <option value="offset">D+3 = out number</option>
+                <option value="invert">~D = out number</option>
+                <option value="invert_offset">~D+3 = out number</option>
               </select>
             </label>
           </div>
@@ -790,7 +792,16 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
 
     function decodedScanRow(d) {{
       const value = d & 0xF;
-      return keypadRowMode() === "offset" ? value + 3 : value;
+      switch (keypadRowMode()) {{
+        case "offset":
+          return value + 3;
+        case "invert":
+          return (~value) & 0xF;
+        case "invert_offset":
+          return ((~value) & 0xF) + 3;
+        default:
+          return value;
+      }}
     }}
 
     function oct(n, width = 0) {{
