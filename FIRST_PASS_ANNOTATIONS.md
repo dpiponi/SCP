@@ -1728,6 +1728,24 @@ Page-2 keypad-column clue:
   - `SCAN_STATE` bit `8` = `K4`
 - That is a better fit than treating the four bits as unrelated software states, because the page-2 loop is visibly doing a one-of-four post-`TKB` decode.
 
+Additional physical keypad observation:
+
+- A direct inspection of the opened calculator shows another meaningful electrical grouping inside the keypad assembly.
+- One foil layer ties keys together in four groups:
+  - `(^v, C/CE, RUN)`
+  - `(EE, 6, 7, 8, 9)`
+  - `(4, 5, 1, 2, 3, 0)`
+  - `(=, +, -, x, /)`
+- This does not match the scanned `out 3..8` row grouping directly.
+- So the keyboard almost certainly has more internal structure than a naive "six rows by four columns" reading.
+- In particular, these foil groups look logically meaningful:
+  - top control keys
+  - high digit / `EE` group
+  - low digit group
+  - operator group
+- That makes it more plausible that the ROM's visible `TM 1/2/4/8` decode is seeing a conditioned or partially encoded key-class signal rather than a raw single-switch identity.
+- It also strengthens the earlier caution that `K1..K4` may not be the whole story by themselves, especially given the suspicious `F2 / K3` note in the hardware pin list.
+
 Consequence for the key hypothesis:
 
 - If `SCAN_STATE bit 2` really is the `K2` column, then the page-23 `TM 2` family is not a single key.

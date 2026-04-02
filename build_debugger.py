@@ -254,6 +254,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       min-height: 0;
       overflow: hidden;
     }}
+    .left > .panel {{
+      min-height: 0;
+    }}
     .middle {{
       display: grid;
       grid-template-rows: 1fr;
@@ -401,17 +404,25 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       text-align: center;
       font: inherit;
       font-family: var(--font-code);
+      font-weight: 600;
+      line-height: 1;
       cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+      min-height: 42px;
     }}
     .key.active {{
-      background: #fce6b5;
-      border-color: #d59b28;
-      box-shadow: inset 0 0 0 1px rgba(181, 111, 0, 0.18);
-      font-weight: 700;
+      background: #ffcc5c;
+      border-color: #b36a00;
+      box-shadow: inset 0 0 0 2px rgba(179, 106, 0, 0.24);
     }}
     .key.scanned {{
       border-color: #4b7db8;
-      box-shadow: inset 0 0 0 1px rgba(67, 119, 184, 0.18);
+      box-shadow: inset 0 0 0 2px rgba(67, 119, 184, 0.22);
+    }}
+    .key.active.scanned {{
+      background: #d8f0da;
+      border-color: #2c8f4d;
+      box-shadow: inset 0 0 0 2px rgba(44, 143, 77, 0.22);
     }}
     .key-meta {{
       color: var(--muted);
@@ -452,6 +463,12 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     .ram-wrap {{
       padding: 0 14px 14px;
       overflow: auto;
+      min-height: 0;
+    }}
+    .ram-panel {{
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 0;
     }}
     .ram-grid {{
       display: grid;
@@ -669,7 +686,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel ram-panel">
         <div class="section">
           <strong>RAM (128 nibbles)</strong>
           <div class="small-note">
@@ -688,8 +705,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         <div class="section">
           <strong>Keypad</strong>
           <div class="small-note">
-            Best-effort keypad wiring from the documented matrix. Click to hold/release a key.
-            `TKB`/`READ` currently see held keys by row `D=3..8` and column bits `K1=1`, `K2=2`, `K3=4`, `K4=8`.
+            Best-effort keypad wiring from the documented matrix plus the observed foil nets. Click to hold/release a key.
+            The scan side is `out 3..8`; the sensed side is `K1..K4`, which matches the four foil groups:
+            low digits = `K1`, high digits/`EE` = `K2`, operators = `K3`, top control keys = `K4`.
           </div>
           <div class="keypad-wrap" id="keypad"></div>
           <div class="keypad-controls">
@@ -697,10 +715,18 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
               <span>Row decode</span>
               <select id="keypad-row-mode">
                 <option value="direct">D = out number</option>
-                <option value="offset">D+3 = out number</option>
+                <option value="offset" selected>D+3 = out number</option>
                 <option value="invert">~D = out number</option>
                 <option value="invert_offset">~D+3 = out number</option>
               </select>
+            </label>
+            <label class="toolbar-option" for="force-k">
+              <span>Force K</span>
+              <input type="text" id="force-k" value="" placeholder="hex">
+            </label>
+            <label class="toolbar-option" for="invert-k">
+              <input type="checkbox" id="invert-k">
+              <span>Invert K</span>
             </label>
           </div>
         </div>
@@ -729,27 +755,28 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     const LOGICAL_TO_LINE = __LOGICAL_MAP_JSON__;
     const LFSR_INDEX_BY_WORD = Object.fromEntries(LFSR_SEQUENCE.map((word, index) => [word, index]));
     const SEGMENT_DATA = [0x7f, 0x40, 0x79, 0x24, 0x30, 0x19, 0x12, 0x02, 0x78, 0x10, 0x06, 0x23, 0x06, 0x66, 0x6f, 0x01, 0x02, 0x08, 0x04];
+    const NET_TO_BIT = {{K1: 0x1, K2: 0x2, K3: 0x4, K4: 0x8}};
     const KEYS = [
-      {id: "shift", label: "^v", row: 3, bit: 0x8, group: "top"},
-      {id: "cce", label: "C/CE", row: 4, bit: 0x8, group: "top"},
-      {id: "run", label: "RUN", row: 5, bit: 0x8, group: "top"},
-      {id: "0", label: "0", row: 3, bit: 0x1, group: "main"},
-      {id: "6", label: "6", row: 3, bit: 0x2, group: "main"},
-      {id: "eq", label: "=", row: 3, bit: 0x4, group: "main"},
-      {id: "1", label: "1", row: 4, bit: 0x1, group: "main"},
-      {id: "2", label: "2", row: 5, bit: 0x1, group: "main"},
-      {id: "3", label: "3", row: 6, bit: 0x1, group: "main"},
-      {id: "4", label: "4", row: 7, bit: 0x1, group: "main"},
-      {id: "5", label: "5", row: 8, bit: 0x1, group: "main"},
-      {id: "7", label: "7", row: 4, bit: 0x2, group: "main"},
-      {id: "8", label: "8", row: 5, bit: 0x2, group: "main"},
-      {id: "9", label: "9", row: 6, bit: 0x2, group: "main"},
-      {id: "ee", label: "EE", row: 7, bit: 0x2, group: "main"},
-      {id: "plus", label: "+", row: 6, bit: 0x4, group: "main"},
-      {id: "minus", label: "-", row: 4, bit: 0x4, group: "main"},
-      {id: "mul", label: "x", row: 7, bit: 0x4, group: "main"},
-      {id: "div", label: "/", row: 5, bit: 0x4, group: "main"},
-    ];
+      {id: "shift", label: "^v", row: 3, net: "K4", group: "top"},
+      {id: "cce", label: "C/CE", row: 4, net: "K4", group: "top"},
+      {id: "run", label: "RUN", row: 5, net: "K4", group: "top"},
+      {id: "0", label: "0", row: 3, net: "K1", group: "main"},
+      {id: "6", label: "6", row: 3, net: "K2", group: "main"},
+      {id: "eq", label: "=", row: 3, net: "K3", group: "main"},
+      {id: "1", label: "1", row: 4, net: "K1", group: "main"},
+      {id: "2", label: "2", row: 5, net: "K1", group: "main"},
+      {id: "3", label: "3", row: 6, net: "K1", group: "main"},
+      {id: "4", label: "4", row: 7, net: "K1", group: "main"},
+      {id: "5", label: "5", row: 8, net: "K1", group: "main"},
+      {id: "7", label: "7", row: 4, net: "K2", group: "main"},
+      {id: "8", label: "8", row: 5, net: "K2", group: "main"},
+      {id: "9", label: "9", row: 6, net: "K2", group: "main"},
+      {id: "ee", label: "EE", row: 7, net: "K2", group: "main"},
+      {id: "plus", label: "+", row: 6, net: "K3", group: "main"},
+      {id: "minus", label: "-", row: 4, net: "K3", group: "main"},
+      {id: "mul", label: "x", row: 7, net: "K3", group: "main"},
+      {id: "div", label: "/", row: 5, net: "K3", group: "main"},
+    ].map((key) => ({{...key, bit: NET_TO_BIT[key.net]}}));
     const KEY_BY_ID = Object.fromEntries(KEYS.map((key) => [key.id, key]));
 
     const state = {{
@@ -852,6 +879,21 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
 
     function kinput(_d) {{
+      let mask = 0;
+      const forcedEl = document.getElementById("force-k");
+      if (forcedEl) {{
+        const forced = (forcedEl.value || "").trim().toUpperCase().replace(/[^0-9A-F]/g, "");
+        if (forced !== "") mask = parseInt(forced.slice(-1), 16) & 0xF;
+      }}
+      else {{
+        mask = expectedKForD(_d);
+      }}
+      const invertEl = document.getElementById("invert-k");
+      if (invertEl && invertEl.checked) mask = (~mask) & 0xF;
+      return mask & 0xF;
+    }}
+
+    function expectedKForD(_d) {{
       const row = decodedScanRow(_d);
       let mask = 0;
       for (const keyId of pressedKeys) {{
@@ -1014,6 +1056,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             break;
           case 0x15:
             state.K = kinput(state.D);
+            noteTrace(`TKB D=${hex(state.D, 1)} row=${decodedScanRow(state.D)} K=${hex(state.K, 1)}`);
             if (state.K > 0) state.skip = true;
             break;
           case 0x20:
@@ -1306,11 +1349,25 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     function renderKeypad() {{
       const root = document.getElementById("keypad");
       const scanRow = decodedScanRow(state.D);
+      const expectedMask = expectedKForD(state.D);
       const kMask = kinput(state.D);
+      const heldKeys = KEYS.filter((key) => pressedKeys.has(key.id));
+      const heldLabels = heldKeys.map((key) => key.label);
+      const heldOnRow = heldKeys.filter((key) => key.row === scanRow);
+      let heldRowMask = 0;
+      for (const key of heldOnRow) heldRowMask |= key.bit;
+      const sensed = [];
+      for (const [net, bit] of Object.entries(NET_TO_BIT)) {{
+        if (kMask & bit) sensed.push(net);
+      }}
+      const expectedSensed = [];
+      for (const [net, bit] of Object.entries(NET_TO_BIT)) {{
+        if (expectedMask & bit) expectedSensed.push(net);
+      }}
       const renderKey = (key) => {{
         const active = pressedKeys.has(key.id) ? " active" : "";
         const scanned = key.row === scanRow ? " scanned" : "";
-        return `<button class="key${active}${scanned}" type="button" data-key="${key.id}" title="row ${key.row}, mask ${hex(key.bit, 1)}">${key.label}</button>`;
+        return `<button class="key${active}${scanned}" type="button" data-key="${key.id}" title="out ${key.row}, ${key.net}, mask ${hex(key.bit, 1)}">${key.label}</button>`;
       }};
       const top = KEYS.filter((key) => key.group === "top").map(renderKey).join("");
       const main = KEYS.filter((key) => key.group === "main").map(renderKey).join("");
@@ -1318,11 +1375,17 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         <div class="keypad-status">
           <span>D=${hex(state.D, 1)}</span>
           <span>scan row=${scanRow}</span>
+          <span>held=${heldLabels.length ? heldLabels.join(",") : "--"}</span>
+          <span>held on row=${heldOnRow.length ? heldOnRow.map((key) => key.label).join(",") : "--"}</span>
+          <span>row-held mask=${hex(heldRowMask, 1)}</span>
+          <span>expected K=${hex(expectedMask, 1)}</span>
+          <span>expected nets=${expectedSensed.length ? expectedSensed.join(",") : "--"}</span>
           <span>K=${hex(kMask, 1)}</span>
+          <span>nets=${sensed.length ? sensed.join(",") : "--"}</span>
         </div>
         <div class="keypad-top">${top}</div>
         <div class="keypad-grid">${main}</div>
-        <div class="key-meta">Held keys are returned by kinput(D) when the CPU scans that row.</div>
+        <div class="key-meta">Held keys are returned by kinput(D) when the CPU scans that row. If Force K is set, it overrides the guessed keypad matrix.</div>
       `;
     }}
 
@@ -1667,16 +1730,31 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       }}
     }});
 
-    document.getElementById("keypad").addEventListener("click", (event) => {{
+    const toggleHeldKeyFromEvent = (event) => {{
       const keyEl = event.target.closest("[data-key]");
       if (!keyEl) return;
+      event.preventDefault();
       const keyId = keyEl.dataset.key;
       if (pressedKeys.has(keyId)) pressedKeys.delete(keyId);
       else pressedKeys.add(keyId);
       renderKeypad();
-    }});
+    }};
+
+    document.getElementById("keypad").addEventListener("pointerdown", toggleHeldKeyFromEvent);
+    document.getElementById("keypad").addEventListener("click", toggleHeldKeyFromEvent);
 
     document.getElementById("keypad-row-mode").addEventListener("change", () => {{
+      renderKeypad();
+    }});
+
+    document.getElementById("force-k").addEventListener("input", (event) => {{
+      const input = event.target;
+      const raw = (input.value || "").toUpperCase().replace(/[^0-9A-F]/g, "");
+      input.value = raw.slice(-1);
+      renderKeypad();
+    }});
+
+    document.getElementById("invert-k").addEventListener("change", () => {{
       renderKeypad();
     }});
 

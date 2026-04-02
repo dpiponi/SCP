@@ -16,6 +16,11 @@
 - [sinclaircambridgeprogrammable.bin](/Users/dan/Sinclair/sinclaircambridgeprogrammable.bin): cleaned ROM image to analyze.
 - [sinclaircambridgeprogrammableraw.bin](/Users/dan/Sinclair/sinclaircambridgeprogrammableraw.bin): raw extraction, useful only as provenance.
 - [sinclaircambridgeprogrammable.txt](/Users/dan/Sinclair/sinclaircambridgeprogrammable.txt): hardware and keypad matrix notes.
+- Physical keypad foil grouping observed directly in the opened calculator:
+  - `(^v, C/CE, RUN)`
+  - `(EE, 6, 7, 8, 9)`
+  - `(4, 5, 1, 2, 3, 0)`
+  - `(=, +, -, x, /)`
 - [Sinclair_Cambridge_Programmable.pdf](/Users/dan/Sinclair/Sinclair_Cambridge_Programmable.pdf): operating manual for the calculator, useful for user-facing vocabulary and program model.
 - [nationalcopsi.pdf](/Users/dan/Sinclair/nationalcopsi.pdf): MOS/LSI databook scan with MM5799 documentation, but OCR is effectively absent.
 
