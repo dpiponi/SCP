@@ -459,9 +459,10 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
     .line {{
       white-space: pre;
-      padding: 0 14px;
+      padding: 0 14px 0 28px;
       border-left: 4px solid transparent;
       cursor: default;
+      position: relative;
     }}
     .line.instr {{
       cursor: pointer;
@@ -481,6 +482,22 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       background: linear-gradient(90deg, var(--pc-hi), #eef9e9);
       border-left-color: var(--accent);
       box-shadow: inset 0 0 0 1px rgba(15, 107, 92, 0.14);
+    }}
+    .line.breakpoint::before {{
+      content: "";
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      width: 10px;
+      height: 10px;
+      margin-top: -5px;
+      border-radius: 50%;
+      background: #c23b22;
+      box-shadow: 0 0 0 1px rgba(92, 20, 10, 0.18);
+    }}
+    .line.current.breakpoint::before {{
+      background: #0f6b5c;
+      box-shadow: 0 0 0 1px rgba(15, 107, 92, 0.2);
     }}
     .line.page {{
       color: var(--warn);
@@ -572,6 +589,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           <div class="small-note">
             Edit any register field, then use <strong>Apply Edits</strong>.
             Click any instruction line on the right to move the PC there.
+            Shift-click an instruction line to toggle a breakpoint.
             RAM is shown below as hex digits.
           </div>
         </div>
@@ -649,6 +667,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     const trace = [];
     let selectedLogical = null;
     let isRunning = false;
+    const breakpoints = new Set();
 
     function oct(n, width = 0) {{
       const value = (n >>> 0).toString(8);
@@ -1112,6 +1131,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         const classes = ["line", line.type];
         if (line.type === "instr" && line.logical === currentLogical) classes.push("current");
         if (line.type === "instr" && line.logical === selectedLogical) classes.push("selected");
+        if (line.type === "instr" && breakpoints.has(line.logical)) classes.push("breakpoint");
         const logicalAttr = line.type === "instr" ? ` data-logical="${{line.logical}}"` : "";
         if (line.type !== "instr") {{
           const safe = escapeHtml(line.text || "");
@@ -1264,6 +1284,13 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     function stepMany(count) {{
       syncUiToState();
       for (let i = 0; i < count; i++) {{
+        if (i > 0 && breakpoints.has(getLogicalPC())) {{
+          noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
+          renderTrace();
+          renderDisasm();
+          scrollToPc();
+          return;
+        }}
         stepOne(false);
       }}
     }}
@@ -1289,6 +1316,13 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       updateControls();
       try {{
         for (let i = 0; i < count; i++) {{
+          if (i > 0 && breakpoints.has(getLogicalPC())) {{
+            noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
+            renderTrace();
+            renderDisasm();
+            scrollToPc();
+            return;
+          }}
           stepOne(false);
           await sleep(animationDelayMs());
         }}
@@ -1301,6 +1335,13 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     function stepUntilReturn(maxSteps = 10000) {{
       syncUiToState();
       for (let i = 0; i < maxSteps; i++) {{
+        if (i > 0 && breakpoints.has(getLogicalPC())) {{
+          noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
+          renderTrace();
+          renderDisasm();
+          scrollToPc();
+          return;
+        }}
         const opcode = currentOpcode();
         const willExecuteReturn = !state.skip && (opcode === 0x40 || opcode === 0x41);
         if (willExecuteReturn) {{
@@ -1321,6 +1362,13 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       updateControls();
       try {{
         for (let i = 0; i < maxSteps; i++) {{
+          if (i > 0 && breakpoints.has(getLogicalPC())) {{
+            noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
+            renderTrace();
+            renderDisasm();
+            scrollToPc();
+            return;
+          }}
           const opcode = currentOpcode();
           const willExecuteReturn = !state.skip && (opcode === 0x40 || opcode === 0x41);
           if (willExecuteReturn) {{
@@ -1359,6 +1407,13 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     document.getElementById("disasm").addEventListener("click", (event) => {{
       const line = event.target.closest(".line.instr");
       if (!line) return;
+      if (event.shiftKey) {{
+        const logical = Number(line.dataset.logical);
+        if (breakpoints.has(logical)) breakpoints.delete(logical);
+        else breakpoints.add(logical);
+        renderDisasm();
+        return;
+      }}
       selectedLogical = Number(line.dataset.logical);
       setPCFromLogical(selectedLogical);
       renderAll();
