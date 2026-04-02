@@ -1093,7 +1093,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           const title = idx === current
             ? `B points here: RAM[${hex(row, 1)},${hex(col, 1)}]`
             : `RAM[${hex(row, 1)},${hex(col, 1)}]`;
-          html += `<input class="${{cls}}" title="${{title}}" data-ram="${{idx}}" value="${{hex(state.M[idx], 1)}}">`;
+          html += `<input class="${{cls}}" title="${{title}}" data-ram="${{idx}}" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="1" value="${{hex(state.M[idx], 1)}}">`;
         }}
       }}
       grid.innerHTML = html;
@@ -1253,6 +1253,14 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       if (el) el.scrollIntoView({{block: "center"}});
     }}
 
+    function focusRamCell(index) {{
+      const wrapped = ((index % 128) + 128) % 128;
+      const el = document.querySelector(`[data-ram="${wrapped}"]`);
+      if (!el) return;
+      el.focus();
+      el.select();
+    }}
+
     function stepMany(count) {{
       syncUiToState();
       for (let i = 0; i < count; i++) {{
@@ -1355,6 +1363,36 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       setPCFromLogical(selectedLogical);
       renderAll();
       scrollToPc();
+    }});
+
+    document.getElementById("ram-grid").addEventListener("input", (event) => {{
+      const input = event.target.closest("[data-ram]");
+      if (!input) return;
+      const raw = (input.value || "").toUpperCase().replace(/[^0-9A-F]/g, "");
+      input.value = raw.slice(-1);
+      if (input.value.length === 1) {{
+        const idx = Number(input.dataset.ram);
+        focusRamCell(idx + 1);
+      }}
+    }});
+
+    document.getElementById("ram-grid").addEventListener("keydown", (event) => {{
+      const input = event.target.closest("[data-ram]");
+      if (!input) return;
+      const idx = Number(input.dataset.ram);
+      if (event.key === "ArrowRight") {{
+        event.preventDefault();
+        focusRamCell(idx + 1);
+      }} else if (event.key === "ArrowLeft") {{
+        event.preventDefault();
+        focusRamCell(idx - 1);
+      }} else if (event.key === "ArrowDown") {{
+        event.preventDefault();
+        focusRamCell(idx + 16);
+      }} else if (event.key === "ArrowUp") {{
+        event.preventDefault();
+        focusRamCell(idx - 16);
+      }}
     }});
 
     document.addEventListener("keydown", (event) => {{
