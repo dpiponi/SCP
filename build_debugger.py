@@ -354,6 +354,41 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       font: inherit;
       font-family: var(--font-code);
     }}
+    .keypad-wrap {{
+      display: grid;
+      gap: 8px;
+    }}
+    .keypad-top {{
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }}
+    .keypad-grid {{
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }}
+    .key {{
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: white;
+      padding: 10px 8px;
+      text-align: center;
+      font: inherit;
+      font-family: var(--font-code);
+      cursor: pointer;
+    }}
+    .key.active {{
+      background: #fce6b5;
+      border-color: #d59b28;
+      box-shadow: inset 0 0 0 1px rgba(181, 111, 0, 0.18);
+      font-weight: 700;
+    }}
+    .key-meta {{
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
+    }}
     .small-note {{
       color: var(--muted);
       font-size: 12px;
@@ -566,7 +601,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             <button class="primary" id="step-btn">Step</button>
             <button id="stepover-btn">To RET</button>
             <button id="step10-btn">Step 10</button>
-            <button id="run100-btn">Run 100</button>
+            <button id="continue-btn">Continue</button>
             <button id="reset-btn">Reset</button>
             <button id="apply-btn">Apply Edits</button>
             <button id="goto-pc-btn">Scroll To PC</button>
@@ -598,6 +633,17 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       <div class="panel">
         <div class="section">
           <div class="grid register-grid" id="flag-grid"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="section">
+          <strong>Keypad</strong>
+          <div class="small-note">
+            Best-effort keypad wiring from the documented matrix. Click to hold/release a key.
+            `TKB`/`READ` currently see held keys by row `D=3..8` and column bits `K1=1`, `K2=2`, `K3=4`, `K4=8`.
+          </div>
+          <div class="keypad-wrap" id="keypad"></div>
         </div>
       </div>
 
@@ -637,6 +683,28 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     const LOGICAL_TO_LINE = __LOGICAL_MAP_JSON__;
     const LFSR_INDEX_BY_WORD = Object.fromEntries(LFSR_SEQUENCE.map((word, index) => [word, index]));
     const SEGMENT_DATA = [0x7f, 0x40, 0x79, 0x24, 0x30, 0x19, 0x12, 0x02, 0x78, 0x10, 0x06, 0x23, 0x06, 0x66, 0x6f, 0x01, 0x02, 0x08, 0x04];
+    const KEYS = [
+      {id: "shift", label: "^v", row: 3, bit: 0x8, group: "top"},
+      {id: "cce", label: "C/CE", row: 4, bit: 0x8, group: "top"},
+      {id: "run", label: "RUN", row: 5, bit: 0x8, group: "top"},
+      {id: "0", label: "0", row: 3, bit: 0x1, group: "main"},
+      {id: "6", label: "6", row: 3, bit: 0x2, group: "main"},
+      {id: "eq", label: "=", row: 3, bit: 0x4, group: "main"},
+      {id: "1", label: "1", row: 4, bit: 0x1, group: "main"},
+      {id: "2", label: "2", row: 5, bit: 0x1, group: "main"},
+      {id: "3", label: "3", row: 6, bit: 0x1, group: "main"},
+      {id: "4", label: "4", row: 7, bit: 0x1, group: "main"},
+      {id: "5", label: "5", row: 8, bit: 0x1, group: "main"},
+      {id: "7", label: "7", row: 4, bit: 0x2, group: "main"},
+      {id: "8", label: "8", row: 5, bit: 0x2, group: "main"},
+      {id: "9", label: "9", row: 6, bit: 0x2, group: "main"},
+      {id: "ee", label: "EE", row: 7, bit: 0x2, group: "main"},
+      {id: "plus", label: "+", row: 6, bit: 0x4, group: "main"},
+      {id: "minus", label: "-", row: 4, bit: 0x4, group: "main"},
+      {id: "mul", label: "x", row: 7, bit: 0x4, group: "main"},
+      {id: "div", label: "/", row: 5, bit: 0x4, group: "main"},
+    ];
+    const KEY_BY_ID = Object.fromEntries(KEYS.map((key) => [key.id, key]));
 
     const state = {{
       Pp: 0,
@@ -667,7 +735,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     const trace = [];
     let selectedLogical = null;
     let isRunning = false;
+    let stopRequested = false;
     const breakpoints = new Set();
+    const pressedKeys = new Set();
 
     function oct(n, width = 0) {{
       const value = (n >>> 0).toString(8);
@@ -717,7 +787,13 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
 
     function kinput(_d) {{
-      return 0;
+      const d = _d & 0xF;
+      let mask = 0;
+      for (const keyId of pressedKeys) {{
+        const key = KEY_BY_ID[keyId];
+        if (key && key.row === d) mask |= key.bit;
+      }}
+      return mask & 0xF;
     }}
 
     function noteTrace(message) {{
@@ -753,7 +829,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       state.skip = false;
       state.wasLB = false;
       trace.length = 0;
+      stopRequested = false;
       selectedLogical = null;
+      pressedKeys.clear();
       renderAll();
     }}
 
@@ -1160,9 +1238,25 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       document.getElementById("trace-list").textContent = trace.join("\\n");
     }}
 
+    function renderKeypad() {{
+      const root = document.getElementById("keypad");
+      const renderKey = (key) => {{
+        const active = pressedKeys.has(key.id) ? " active" : "";
+        return `<button class="key${active}" type="button" data-key="${key.id}" title="row ${key.row}, mask ${hex(key.bit, 1)}">${key.label}</button>`;
+      }};
+      const top = KEYS.filter((key) => key.group === "top").map(renderKey).join("");
+      const main = KEYS.filter((key) => key.group === "main").map(renderKey).join("");
+      root.innerHTML = `
+        <div class="keypad-top">${top}</div>
+        <div class="keypad-grid">${main}</div>
+        <div class="key-meta">Held keys are returned by kinput(D) when the CPU scans that row.</div>
+      `;
+    }}
+
     function renderAll() {{
       renderRegisterGrid();
       renderFlagGrid();
+      renderKeypad();
       renderStatus();
       renderRam();
       renderDisasm();
@@ -1171,7 +1265,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
 
     function updateControls() {{
-      for (const id of ["step-btn", "stepover-btn", "step10-btn", "run100-btn", "reset-btn", "apply-btn"]) {{
+      for (const id of ["step-btn", "stepover-btn", "step10-btn", "continue-btn", "reset-btn", "apply-btn"]) {{
         const el = document.getElementById(id);
         if (el) el.disabled = isRunning;
       }}
@@ -1312,10 +1406,18 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     async function runAnimatedSteps(count) {{
       if (isRunning) return;
       syncUiToState();
+      stopRequested = false;
       isRunning = true;
       updateControls();
       try {{
         for (let i = 0; i < count; i++) {{
+          if (stopRequested) {{
+            noteTrace("run stopped by Escape");
+            renderTrace();
+            renderDisasm();
+            scrollToPc();
+            return;
+          }}
           if (i > 0 && breakpoints.has(getLogicalPC())) {{
             noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
             renderTrace();
@@ -1328,6 +1430,42 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         }}
       }} finally {{
         isRunning = false;
+        stopRequested = false;
+        updateControls();
+      }}
+    }}
+
+    async function continueExecution(maxSteps = 1000000) {{
+      if (isRunning) return;
+      syncUiToState();
+      stopRequested = false;
+      isRunning = true;
+      updateControls();
+      try {{
+        for (let i = 0; i < maxSteps; i++) {{
+          if (stopRequested) {{
+            noteTrace("continue stopped by Escape");
+            renderTrace();
+            renderDisasm();
+            scrollToPc();
+            return;
+          }}
+          if (i > 0 && breakpoints.has(getLogicalPC())) {{
+            noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
+            renderTrace();
+            renderDisasm();
+            scrollToPc();
+            return;
+          }}
+          stepOne(false);
+          if (animationEnabled()) await sleep(animationDelayMs());
+          else if ((i & 0x3F) === 0x3F) await sleep(0);
+        }}
+        noteTrace(`continue stopped after ${maxSteps} steps`);
+        renderTrace();
+      }} finally {{
+        isRunning = false;
+        stopRequested = false;
         updateControls();
       }}
     }}
@@ -1358,10 +1496,18 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     async function stepUntilReturnAnimated(maxSteps = 10000) {{
       if (isRunning) return;
       syncUiToState();
+      stopRequested = false;
       isRunning = true;
       updateControls();
       try {{
         for (let i = 0; i < maxSteps; i++) {{
+          if (stopRequested) {{
+            noteTrace("run-to-return stopped by Escape");
+            renderTrace();
+            renderDisasm();
+            scrollToPc();
+            return;
+          }}
           if (i > 0 && breakpoints.has(getLogicalPC())) {{
             noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
             renderTrace();
@@ -1383,6 +1529,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         renderTrace();
       }} finally {{
         isRunning = false;
+        stopRequested = false;
         updateControls();
       }}
     }}
@@ -1396,10 +1543,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       if (animationEnabled()) runAnimatedSteps(10);
       else stepMany(10);
     }});
-    document.getElementById("run100-btn").addEventListener("click", () => {{
-      if (animationEnabled()) runAnimatedSteps(100);
-      else stepMany(100);
-    }});
+    document.getElementById("continue-btn").addEventListener("click", () => continueExecution());
     document.getElementById("reset-btn").addEventListener("click", () => resetState());
     document.getElementById("apply-btn").addEventListener("click", () => applyEdits());
     document.getElementById("goto-pc-btn").addEventListener("click", () => scrollToPc());
@@ -1450,9 +1594,23 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       }}
     }});
 
+    document.getElementById("keypad").addEventListener("click", (event) => {{
+      const keyEl = event.target.closest("[data-key]");
+      if (!keyEl) return;
+      const keyId = keyEl.dataset.key;
+      if (pressedKeys.has(keyId)) pressedKeys.delete(keyId);
+      else pressedKeys.add(keyId);
+      renderKeypad();
+    }});
+
     document.addEventListener("keydown", (event) => {{
       const target = event.target;
       const tag = target && target.tagName ? target.tagName.toUpperCase() : "";
+      if (event.key === "Escape" && isRunning) {{
+        event.preventDefault();
+        stopRequested = true;
+        return;
+      }}
       if (tag === "INPUT" || tag === "TEXTAREA" || (target && target.isContentEditable)) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (event.key === "s" || event.key === "S") {{
@@ -1462,6 +1620,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         event.preventDefault();
         if (animationEnabled()) stepUntilReturnAnimated();
         else stepUntilReturn();
+      }} else if (event.key === "c" || event.key === "C") {{
+        event.preventDefault();
+        continueExecution();
       }}
     }});
 
