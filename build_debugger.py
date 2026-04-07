@@ -235,7 +235,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
     .app {{
       display: grid;
-      grid-template-columns: 420px 280px 1fr;
+      grid-template-columns: 400px 380px 1fr;
       height: 100vh;
       gap: 12px;
       padding: 12px;
@@ -506,6 +506,111 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       box-shadow: inset 0 0 0 2px #b47a00;
       font-weight: 700;
     }}
+    .ram-cell.selected {{
+      border-color: #4377b8;
+      box-shadow: inset 0 0 0 2px rgba(67, 119, 184, 0.35);
+    }}
+    .ram-cell.watch {{
+      border-color: #a22a2a;
+      box-shadow: inset 0 0 0 2px rgba(162, 42, 42, 0.18);
+    }}
+    .ram-cell.current.watch {{
+      box-shadow: inset 0 0 0 2px #b47a00, 0 0 0 1px rgba(162, 42, 42, 0.35);
+    }}
+    .ram-cell.current.selected {{
+      box-shadow: inset 0 0 0 2px #b47a00, 0 0 0 1px rgba(67, 119, 184, 0.55);
+    }}
+    .display-wrap {{
+      display: grid;
+      gap: 10px;
+    }}
+    .display-status {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }}
+    .display-status span {{
+      min-width: 96px;
+    }}
+    .calc-display {{
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #0f1514, #182120);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }}
+    .calc-digit {{
+      min-height: 72px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(35,53,49,0.96), rgba(20,31,29,0.96));
+      color: #86ffbb;
+      display: grid;
+      align-items: start;
+      justify-items: center;
+      padding: 4px 4px 2px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }}
+    .calc-digit.active {{
+      border-color: rgba(134,255,187,0.45);
+      box-shadow: inset 0 0 0 1px rgba(134,255,187,0.2), 0 0 0 1px rgba(134,255,187,0.08);
+    }}
+    .calc-digit.selected {{
+      border-color: rgba(95, 166, 255, 0.35);
+      box-shadow: inset 0 0 0 1px rgba(95, 166, 255, 0.16);
+    }}
+    .sevenseg {{
+      position: relative;
+      width: 34px;
+      height: 56px;
+      margin-top: 2px;
+    }}
+    .seg {{
+      position: absolute;
+      background: rgba(134,255,187,0.10);
+      box-shadow: inset 0 0 0 1px rgba(134,255,187,0.05);
+      transition: background 80ms linear, box-shadow 80ms linear;
+    }}
+    .seg.on {{
+      background: #86ffbb;
+      box-shadow: 0 0 10px rgba(134,255,187,0.34);
+    }}
+    .seg.a, .seg.d, .seg.g {{
+      width: 18px;
+      height: 5px;
+      left: 8px;
+      border-radius: 4px;
+    }}
+    .seg.a {{ top: 0; }}
+    .seg.g {{ top: 25px; }}
+    .seg.d {{ bottom: 0; }}
+    .seg.b, .seg.c, .seg.e, .seg.f {{
+      width: 5px;
+      height: 18px;
+      border-radius: 4px;
+    }}
+    .seg.f {{ left: 2px; top: 4px; }}
+    .seg.b {{ right: 2px; top: 4px; }}
+    .seg.e {{ left: 2px; bottom: 4px; }}
+    .seg.c {{ right: 2px; bottom: 4px; }}
+    .calc-dot {{
+      position: absolute;
+      right: -2px;
+      bottom: -2px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(134,255,187,0.16);
+    }}
+    .calc-dot.on {{
+      background: #baffd6;
+      box-shadow: 0 0 8px rgba(186,255,214,0.35);
+    }}
     .right {{
       display: grid;
       grid-template-rows: auto 1fr auto;
@@ -554,6 +659,10 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     .line.current {{
       background: var(--pc-hi);
       border-left-color: var(--accent);
+    }}
+    .line.previous {{
+      background: #e3f3ee;
+      border-left-color: #5d9d8c;
     }}
     .line.selected {{
       background: var(--sel-hi);
@@ -645,7 +754,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           <div class="subtitle">
             Self-contained debugger for the Sinclair Cambridge Programmable ROM.
             Code view is driven by the current best annotated listing in
-            <code>analysis/sinclaircambridgeprogrammable.dan.txt</code>.
+            <code>analysis/sinclaircambridgeprogrammable.dan.asm</code>.
           </div>
           <div class="toolbar">
             <button class="primary" id="step-btn">Step</button>
@@ -655,9 +764,14 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             <button id="reset-btn">Reset</button>
             <button id="apply-btn">Apply Edits</button>
             <button id="goto-pc-btn">Scroll To PC</button>
+            <button id="goto-writer-btn">Go To Writer</button>
             <label class="toolbar-option" for="animate-toggle">
               <input type="checkbox" id="animate-toggle" checked>
               <span>Animate</span>
+            </label>
+            <label class="toolbar-option" for="breakpoints-toggle">
+              <input type="checkbox" id="breakpoints-toggle" checked>
+              <span>Breakpoints</span>
             </label>
             <label class="toolbar-option" for="animate-delay">
               <span>Delay ms</span>
@@ -674,7 +788,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           <div class="small-note">
             Edit any register field, then use <strong>Apply Edits</strong>.
             Click any instruction line on the right to move the PC there.
-            Shift-click an instruction line to toggle a breakpoint.
+            Command-click an instruction line to toggle a breakpoint.
             RAM is shown below as hex digits.
           </div>
         </div>
@@ -692,6 +806,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           <div class="small-note">
             Displayed as 8 rows × 16 columns to match the emulator's 128-nibble working RAM.
             The current <code>B = (Br &lt;&lt; 4) | Bd</code> cell is highlighted.
+            Command-click a RAM cell to toggle a write breakpoint on that nibble.
           </div>
         </div>
         <div class="ram-wrap">
@@ -701,6 +816,16 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     </div>
 
     <div class="middle">
+      <div class="panel">
+        <div class="section">
+          <strong>Display</strong>
+          <div class="small-note">
+            Simplified display model: <code>BTD</code> selects the visible digit, and each <code>DSPS</code> writes the decoded symbol into that digit.
+          </div>
+          <div class="display-wrap" id="display-wrap"></div>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="section">
           <strong>Keypad</strong>
@@ -715,7 +840,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
               <span>Row decode</span>
               <select id="keypad-row-mode">
                 <option value="direct">D = out number</option>
+                <option value="offset2">D+2 = out number</option>
                 <option value="offset" selected>D+3 = out number</option>
+                <option value="offset4">D+4 = out number</option>
                 <option value="invert">~D = out number</option>
                 <option value="invert_offset">~D+3 = out number</option>
               </select>
@@ -727,6 +854,10 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             <label class="toolbar-option" for="invert-k">
               <input type="checkbox" id="invert-k">
               <span>Invert K</span>
+            </label>
+            <label class="toolbar-option" for="wire-k3-f2">
+              <input type="checkbox" id="wire-k3-f2">
+              <span>K3 -&gt; F2</span>
             </label>
           </div>
         </div>
@@ -755,6 +886,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     const LOGICAL_TO_LINE = __LOGICAL_MAP_JSON__;
     const LFSR_INDEX_BY_WORD = Object.fromEntries(LFSR_SEQUENCE.map((word, index) => [word, index]));
     const SEGMENT_DATA = [0x7f, 0x40, 0x79, 0x24, 0x30, 0x19, 0x12, 0x02, 0x78, 0x10, 0x06, 0x23, 0x06, 0x66, 0x6f, 0x01, 0x02, 0x08, 0x04];
+    const SEGMENT_GLYPHS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "b", "C", "d", "E", " ", "-", "c", "?"];
     const NET_TO_BIT = {{K1: 0x1, K2: 0x2, K3: 0x4, K4: 0x8}};
     const KEYS = [
       {id: "shift", label: "^v", row: 3, net: "K4", group: "top"},
@@ -803,14 +935,27 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       blk: 1,
       skip: false,
       wasLB: false,
+      dsReg: new Array(9).fill(0),
+      dsScan: 0,
+      displayPos: 0,
+      displayActive: -1,
+      displaySelected: 0,
+      visibleDigits: new Array(9).fill(0),
+      visibleGlyphs: new Array(9).fill(" "),
     }};
 
     const trace = [];
     let selectedLogical = null;
+    let previousLogicalPC = null;
+    let currentExecutingLogical = null;
     let isRunning = false;
     let stopRequested = false;
     const breakpoints = new Set();
+    const ramWriteWatchpoints = new Set();
     const pressedKeys = new Set();
+    let lastRamWriteWatchHit = null;
+    let selectedRamAddr = null;
+    const lastWriteLogicalByAddr = new Array(128).fill(null);
 
     function keypadRowMode() {{
       const el = document.getElementById("keypad-row-mode");
@@ -820,8 +965,12 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     function decodedScanRow(d) {{
       const value = d & 0xF;
       switch (keypadRowMode()) {{
+        case "offset2":
+          return value + 2;
         case "offset":
           return value + 3;
+        case "offset4":
+          return value + 4;
         case "invert":
           return (~value) & 0xF;
         case "invert_offset":
@@ -854,6 +1003,63 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       return ((state.Pp & 0x1F) << 6) | (state.Pw & 0x3F);
     }}
 
+    function dpBit() {{
+      return state.C ? 0 : 0x80;
+    }}
+
+    const GLYPH_SEGMENTS = {{
+      " ": [],
+      "?": ["a", "b", "g", "e"],
+      "0": ["a", "b", "c", "d", "e", "f"],
+      "1": ["b", "c"],
+      "2": ["a", "b", "d", "e", "g"],
+      "3": ["a", "b", "c", "d", "g"],
+      "4": ["b", "c", "f", "g"],
+      "5": ["a", "c", "d", "f", "g"],
+      "6": ["a", "c", "d", "e", "f", "g"],
+      "7": ["a", "b", "c"],
+      "8": ["a", "b", "c", "d", "e", "f", "g"],
+      "9": ["a", "b", "c", "d", "f", "g"],
+      "A": ["a", "b", "c", "e", "f", "g"],
+      "b": ["c", "d", "e", "f", "g"],
+      "C": ["a", "d", "e", "f"],
+      "c": ["d", "e", "g"],
+      "d": ["b", "c", "d", "e", "g"],
+      "E": ["a", "d", "e", "f", "g"],
+      "F": ["a", "e", "f", "g"],
+      "-": ["g"],
+    }};
+
+    function activeDisplayDigit() {{
+      return state.displayActive;
+    }}
+
+    function displayDigitIndexFromD(d) {{
+      const value = d & 0xF;
+      if (value === 0xF) return 0;
+      if (value <= 7) return value + 1;
+      return value % 9;
+    }}
+
+    function clockDs8874FromD(oldD, newD) {{
+      const oldClock = oldD & 0x1;
+      const newClock = newD & 0x1;
+      if (!oldClock && newClock) {{
+        for (let i = 8; i > 0; i--) {{
+          state.dsReg[i] = state.dsReg[i - 1] & 0x1;
+        }}
+        state.dsReg[0] = (newD >> 3) & 0x1;
+        state.dsScan = (state.dsScan + 1) % 9;
+      }}
+    }}
+
+    function latchVisibleDisplayDigit(glyph = null) {{
+      const active = state.displaySelected % 9;
+      state.displayActive = active;
+      state.visibleDigits[active] = state.S & 0xFF;
+      if (glyph != null) state.visibleGlyphs[active] = glyph;
+    }}
+
     function getLogicalPC() {{
       return ((state.Pp & 0x1F) << 6) | LFSR_INDEX_BY_WORD[state.Pw & 0x3F];
     }}
@@ -863,6 +1069,11 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       const index = logical & 0x3F;
       state.Pp = page;
       state.Pw = LFSR_SEQUENCE[index];
+      // Jumping into the middle of code should not preserve transient decode state
+      // from whatever instruction happened to execute previously.
+      state.skip = false;
+      state.wasLB = false;
+      previousLogicalPC = null;
     }}
 
     function getNextPc(word) {{
@@ -884,13 +1095,18 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       if (forcedEl) {{
         const forced = (forcedEl.value || "").trim().toUpperCase().replace(/[^0-9A-F]/g, "");
         if (forced !== "") mask = parseInt(forced.slice(-1), 16) & 0xF;
-      }}
-      else {{
+        else mask = expectedKForD(_d);
+      }} else {{
         mask = expectedKForD(_d);
       }}
       const invertEl = document.getElementById("invert-k");
       if (invertEl && invertEl.checked) mask = (~mask) & 0xF;
       return mask & 0xF;
+    }}
+
+    function wireK3ToF2Enabled() {{
+      const el = document.getElementById("wire-k3-f2");
+      return !!(el && el.checked);
     }}
 
     function expectedKForD(_d) {{
@@ -901,6 +1117,17 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         if (key && key.row === row) mask |= key.bit;
       }}
       return mask & 0xF;
+    }}
+
+    function heldKeySummaryForD(_d) {{
+      const row = decodedScanRow(_d);
+      const heldKeys = KEYS.filter((key) => pressedKeys.has(key.id));
+      const heldOnRow = heldKeys.filter((key) => key.row === row);
+      return {
+        held: heldKeys.map((key) => key.label).join(",") || "--",
+        onRow: heldOnRow.map((key) => key.label).join(",") || "--",
+        rowMask: heldOnRow.reduce((mask, key) => mask | key.bit, 0) & 0xF,
+      };
     }}
 
     function noteTrace(message) {{
@@ -935,9 +1162,19 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       state.blk = 1;
       state.skip = false;
       state.wasLB = false;
+      state.dsReg.fill(0);
+      state.dsScan = 0;
+      state.displayPos = 0;
+      state.displayActive = -1;
+      state.displaySelected = 0;
+      state.visibleDigits.fill(0);
+      state.visibleGlyphs.fill(" ");
+      previousLogicalPC = null;
       trace.length = 0;
       stopRequested = false;
       selectedLogical = null;
+      selectedRamAddr = null;
+      lastWriteLogicalByAddr.fill(null);
       pressedKeys.clear();
       renderAll();
     }}
@@ -950,17 +1187,33 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       return v & 0xF;
     }}
 
-    function stepOne(syncInputs = true) {{
+    function readMem(addr) {{
+      return state.M[addr & 0x7F] & 0xF;
+    }}
+
+    function writeMem(addr, value) {{
+      const index = addr & 0x7F;
+      state.M[index] = normaliseNibble(value);
+      lastWriteLogicalByAddr[index] = currentExecutingLogical;
+      if (ramWriteWatchpoints.has(index)) {{
+        lastRamWriteWatchHit = index;
+      }}
+    }}
+
+    function stepOne(syncInputs = true, renderUi = true) {{
       if (isRunning && syncInputs) return;
       if (syncInputs) syncUiToState();
+      lastRamWriteWatchHit = null;
       selectedLogical = null;
       const beforeLogical = getLogicalPC();
       const beforeRaw = getRawPC();
+      currentExecutingLogical = beforeLogical;
       const opcode = currentOpcode();
       const opName = OPCODES[opcode] || `OP ${hex(opcode, 2)}`;
       let nextpc = getNextPc(state.Pw);
       state.blk = 1;
       let notLB = true;
+      let dspsExecuted = false;
 
       if (state.skip) {{
         state.skip = false;
@@ -978,7 +1231,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             state.Br = tmp & 0x7;
             break;
           case 0x02:
-            state.A = state.A + state.C + state.M[getB()];
+            state.A = state.A + state.C + readMem(getB());
             if (state.A >= 10) {{
               state.C = 1;
             }} else {{
@@ -997,27 +1250,36 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             if ((state.D & 0x4) === 0) state.skip = true;
             break;
           case 0x06: case 0x16: case 0x26: case 0x36:
-            state.A = state.M[getB()];
+            state.A = readMem(getB());
             state.Br ^= ((opcode >> 4) & 0x3);
             break;
           case 0x07: case 0x17: case 0x27: case 0x37:
             tmp = state.A;
-            state.A = state.M[getB()];
-            state.M[getB()] = normaliseNibble(tmp);
+            {{
+              const addr = getB();
+              state.A = readMem(addr);
+              writeMem(addr, tmp);
+            }}
             state.Br ^= ((opcode >> 4) & 0x3);
             break;
           case 0x08: case 0x18: case 0x28: case 0x38:
             tmp = state.A;
-            state.A = state.M[getB()];
-            state.M[getB()] = normaliseNibble(tmp);
+            {{
+              const addr = getB();
+              state.A = readMem(addr);
+              writeMem(addr, tmp);
+            }}
             state.Br ^= ((opcode >> 4) & 0x3);
             state.Bd = (state.Bd - 1) & 0xF;
             if (state.Bd === 15) state.skip = true;
             break;
           case 0x09: case 0x19: case 0x29: case 0x39:
             tmp = state.A;
-            state.A = state.M[getB()];
-            state.M[getB()] = normaliseNibble(tmp);
+            {{
+              const addr = getB();
+              state.A = readMem(addr);
+              writeMem(addr, tmp);
+            }}
             state.Br ^= ((opcode >> 4) & 0x3);
             state.Bd = (state.Bd + 1) & 0xF;
             if (state.Bd === 0 || state.Bd === 13) state.skip = true;
@@ -1036,13 +1298,17 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             notLB = false;
             break;
           case 0x10:
-            state.S = ((state.H & 0x7) << 4) | (state.A & 0xF);
+            state.S = (((state.H & 0x7) << 4) | (state.A & 0xF) | dpBit()) & 0xFF;
             break;
           case 0x11:
-            state.S = SEGMENT_DATA[state.A] ?? 0;
+            dspsExecuted = true;
+            state.S = (((SEGMENT_DATA[state.A] ?? 0) & 0x7F) | dpBit()) & 0xFF;
+            if (beforeLogical !== 0o215) {{
+              latchVisibleDisplayDigit(SEGMENT_GLYPHS[state.A] || "?");
+            }}
             break;
           case 0x12:
-            state.A = normaliseNibble(state.A + state.M[getB()]);
+            state.A = normaliseNibble(state.A + readMem(getB()));
             break;
           case 0x13:
             {{
@@ -1055,9 +1321,18 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             if (state.F2 === 0) state.skip = true;
             break;
           case 0x15:
-            state.K = kinput(state.D);
-            noteTrace(`TKB D=${hex(state.D, 1)} row=${decodedScanRow(state.D)} K=${hex(state.K, 1)}`);
-            if (state.K > 0) state.skip = true;
+            {{
+              const held = heldKeySummaryForD(state.D);
+              const liveK = kinput(state.D);
+              if (wireK3ToF2Enabled()) state.F2 = (liveK & 0x4) ? 1 : 0;
+              if (liveK > 0) state.skip = true;
+              noteTrace(
+                `TKB D=${hex(state.D, 1)} row=${decodedScanRow(state.D)} ` +
+                `held=${held.held} onRow=${held.onRow} rowMask=${hex(held.rowMask, 1)} ` +
+                `live=${hex(liveK, 1)} ` +
+                `skip=${state.skip ? 1 : 0}`
+              );
+            }}
             break;
           case 0x20:
             state.A = normaliseNibble(~state.A);
@@ -1068,7 +1343,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             state.serbuf = tmp & 0xF;
             break;
           case 0x22:
-            tmp = (~state.A & 0xF) + state.C + state.M[getB()];
+            tmp = (~state.A & 0xF) + state.C + readMem(getB());
             state.A = tmp & 0xF;
             if (tmp > 15) {{
               state.C = 1;
@@ -1084,8 +1359,11 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             if (state.F3 === 0) state.skip = true;
             break;
           case 0x25:
+            tmp = state.D & 0xF;
             state.D = state.Bd & 0xF;
             state.blk = 0;
+            clockDs8874FromD(tmp, state.D);
+            state.displaySelected = displayDigitIndexFromD(state.Bd);
             break;
           case 0x30:
             state.A = 0;
@@ -1096,7 +1374,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             state.H = tmp & 0xF;
             break;
           case 0x32:
-            if (state.A === state.M[getB()]) state.skip = true;
+            if (state.A === readMem(getB())) state.skip = true;
             break;
           case 0x33:
             {{
@@ -1108,7 +1386,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             }}
             break;
           case 0x34:
-            state.A = state.K & 0xF;
+            state.A = kinput(state.D) & 0xF;
             break;
           case 0x35:
             if (state.INB === 1) state.skip = true;
@@ -1122,46 +1400,46 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             state.Pp = (tmp >> 6) & 0x1F;
             break;
           case 0x42:
-            state.M[getB()] &= 0x7;
+            writeMem(getB(), readMem(getB()) & 0x7);
             break;
           case 0x43:
             state.A = state.Bd & 0xF;
             break;
           case 0x44:
-            if ((state.M[getB()] & 0x1) === 0) state.skip = true;
+            if ((readMem(getB()) & 0x1) === 0) state.skip = true;
             break;
           case 0x45:
-            if ((state.M[getB()] & 0x2) === 0) state.skip = true;
+            if ((readMem(getB()) & 0x2) === 0) state.skip = true;
             break;
           case 0x46:
-            if ((state.M[getB()] & 0x4) === 0) state.skip = true;
+            if ((readMem(getB()) & 0x4) === 0) state.skip = true;
             break;
           case 0x47:
-            if ((state.M[getB()] & 0x8) === 0) state.skip = true;
+            if ((readMem(getB()) & 0x8) === 0) state.skip = true;
             break;
           case 0x48:
-            state.M[getB()] &= 0xE;
+            writeMem(getB(), readMem(getB()) & 0xE);
             break;
           case 0x49:
-            state.M[getB()] |= 0x1;
+            writeMem(getB(), readMem(getB()) | 0x1);
             break;
           case 0x4A:
-            state.M[getB()] |= 0x8;
+            writeMem(getB(), readMem(getB()) | 0x8);
             break;
           case 0x4B:
-            state.M[getB()] &= 0xB;
+            writeMem(getB(), readMem(getB()) & 0xB);
             break;
           case 0x4C:
-            state.M[getB()] &= 0xD;
+            writeMem(getB(), readMem(getB()) & 0xD);
             break;
           case 0x4D:
             if (state.C === 0) state.skip = true;
             break;
           case 0x4E:
-            state.M[getB()] |= 0x2;
+            writeMem(getB(), readMem(getB()) | 0x2);
             break;
           case 0x4F:
-            state.M[getB()] |= 0x4;
+            writeMem(getB(), readMem(getB()) | 0x4);
             break;
           case 0x50:
             state.Bd = state.A & 0xF;
@@ -1186,7 +1464,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             break;
           default:
             if (opcode >= 0x70 && opcode <= 0x7F) {{
-              state.M[getB()] = opcode & 0x0F;
+              writeMem(getB(), opcode & 0x0F);
               state.Bd = (state.Bd + 1) & 0xF;
             }} else if (opcode >= 0x80 && opcode <= 0xBF) {{
               if ((state.Pp & 0x1E) !== 0x1E) {{
@@ -1207,8 +1485,19 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       }}
 
       state.Pw = nextpc & 0x3F;
-      renderAll();
-      scrollToPc();
+      previousLogicalPC = beforeLogical;
+      currentExecutingLogical = null;
+      if (lastRamWriteWatchHit != null) {{
+        noteTrace(`write breakpoint RAM[${hex(lastRamWriteWatchHit >> 4, 1)},${hex(lastRamWriteWatchHit & 0xF, 1)}]=${hex(readMem(lastRamWriteWatchHit), 1)}`);
+      }}
+      if (renderUi) {{
+        renderAll();
+        scrollToPc();
+      }}
+      return {{
+        dspsExecuted,
+        watchHit: lastRamWriteWatchHit != null,
+      }};
     }}
 
     function renderRegisterGrid() {{
@@ -1227,16 +1516,24 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         ["B", hex(getB(), 2)],
         ["C", String(state.C)],
         ["D", hex(state.D, 1)],
-        ["K", hex(state.K, 1)],
+        ["K", hex(kinput(state.D), 1)],
         ["serbuf", hex(state.serbuf, 1)],
         ["S", hex(state.S, 2)],
       ];
-      root.innerHTML = fields.map(([name, value]) => `
-        <div class="field">
-          <label for="reg-${{name}}">${{name}}</label>
-          <input id="reg-${{name}}" data-reg="${{name}}" value="${{value}}">
-        </div>
-      `).join("");
+      if (!root.dataset.initialized) {{
+        root.innerHTML = fields.map(([name, value]) => `
+          <div class="field">
+            <label for="reg-${{name}}">${{name}}</label>
+            <input id="reg-${{name}}" data-reg="${{name}}" value="${{value}}">
+          </div>
+        `).join("");
+        root.dataset.initialized = "1";
+        return;
+      }}
+      for (const [name, value] of fields) {{
+        const input = document.getElementById(`reg-${name}`);
+        if (input && document.activeElement !== input) input.value = value;
+      }}
     }}
 
     function renderFlagGrid() {{
@@ -1252,12 +1549,20 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         ["SO", state.SO],
         ["blk", state.blk],
       ];
-      root.innerHTML = flags.map(([name, value]) => `
-        <div class="field checkbox">
-          <input type="checkbox" id="flag-${{name}}" data-flag="${{name}}" ${{value ? "checked" : ""}}>
-          <label for="flag-${{name}}">${{name}}</label>
-        </div>
-      `).join("");
+      if (!root.dataset.initialized) {{
+        root.innerHTML = flags.map(([name, value]) => `
+          <div class="field checkbox">
+            <input type="checkbox" id="flag-${{name}}" data-flag="${{name}}" ${{value ? "checked" : ""}}>
+            <label for="flag-${{name}}">${{name}}</label>
+          </div>
+        `).join("");
+        root.dataset.initialized = "1";
+        return;
+      }}
+      for (const [name, value] of flags) {{
+        const input = document.getElementById(`flag-${name}`);
+        if (input) input.checked = !!value;
+      }}
     }}
 
     function renderStatus() {{
@@ -1266,17 +1571,24 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       const row = b >> 4;
       const col = b & 0xF;
       const value = state.M[b] & 0xF;
+      const selected = selectedRamAddr == null ? null : (selectedRamAddr & 0x7F);
+      const selRow = selected == null ? null : (selected >> 4);
+      const selCol = selected == null ? null : (selected & 0xF);
+      const selWrite = selected == null ? null : lastWriteLogicalByAddr[selected];
       status.innerHTML = `
         <span>logical ${oct(getLogicalPC(), 4)}</span>
+        <span>prev ${previousLogicalPC == null ? "----" : oct(previousLogicalPC, 4)}</span>
         <span>raw ${oct(getRawPC(), 4)}</span>
         <span>opcode ${oct(currentOpcode(), 3)}</span>
         <span>${OPCODES[currentOpcode()] || "?"}</span>
         <span>B=${hex(b, 2)}</span>
         <span>RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}</span>
+        <span>sel ${selected == null ? "--" : `RAM[${hex(selRow, 1)},${hex(selCol, 1)}]`}</span>
+        <span>writer ${selWrite == null ? "----" : oct(selWrite, 4)}</span>
         <span class="pending-skip${state.skip ? "" : " idle"}">next instruction will be skipped</span>
       `;
       document.getElementById("code-meta").textContent =
-        `PC ${oct(getLogicalPC(), 4)}  raw ${oct(getRawPC(), 4)}  B ${hex(b, 2)}  RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}`;
+        `PC ${oct(getLogicalPC(), 4)}  prev ${previousLogicalPC == null ? "----" : oct(previousLogicalPC, 4)}  raw ${oct(getRawPC(), 4)}  B ${hex(b, 2)}  RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}`;
     }}
 
     function renderRam() {{
@@ -1284,29 +1596,67 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       const current = getB();
       const currentRow = current >> 4;
       const currentCol = current & 0xF;
-      let html = `<div></div>`;
+      if (!grid.dataset.initialized) {{
+        let html = `<div></div>`;
+        for (let col = 0; col < 16; col++) {{
+          const headCls = col === currentCol ? "ram-head current" : "ram-head";
+          html += `<div class="${{headCls}}" data-ram-head="${col}">${hex(col, 1)}</div>`;
+        }}
+        for (let row = 0; row < 8; row++) {{
+          const rowCls = row === currentRow ? "ram-row-label current" : "ram-row-label";
+          html += `<div class="${{rowCls}}" data-ram-row="${row}">${hex(row, 1)}x</div>`;
+          for (let col = 0; col < 16; col++) {{
+            const idx = row * 16 + col;
+            const classes = ["ram-cell"];
+            if (idx === current) classes.push("current");
+            if (idx === selectedRamAddr) classes.push("selected");
+            if (ramWriteWatchpoints.has(idx)) classes.push("watch");
+            const writer = lastWriteLogicalByAddr[idx];
+            const title = `${idx === current ? "B points here. " : ""}${idx === selectedRamAddr ? "Selected. " : ""}RAM[${hex(row, 1)},${hex(col, 1)}]${ramWriteWatchpoints.has(idx) ? " [write breakpoint]" : ""}${writer == null ? "" : ` [last write ${oct(writer, 4)}]`}`;
+            html += `<input class="${{classes.join(" ")}}" title="${{title}}" data-ram="${{idx}}" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="1" value="${{hex(state.M[idx], 1)}}">`;
+          }}
+        }}
+        grid.innerHTML = html;
+        grid.dataset.initialized = "1";
+        return;
+      }}
       for (let col = 0; col < 16; col++) {{
-        const headCls = col === currentCol ? "ram-head current" : "ram-head";
-        html += `<div class="${{headCls}}">${hex(col, 1)}</div>`;
+        const head = grid.querySelector(`[data-ram-head="${col}"]`);
+        if (head) head.className = col === currentCol ? "ram-head current" : "ram-head";
       }}
       for (let row = 0; row < 8; row++) {{
-        const rowCls = row === currentRow ? "ram-row-label current" : "ram-row-label";
-        html += `<div class="${{rowCls}}">${hex(row, 1)}x</div>`;
+        const label = grid.querySelector(`[data-ram-row="${row}"]`);
+        if (label) label.className = row === currentRow ? "ram-row-label current" : "ram-row-label";
         for (let col = 0; col < 16; col++) {{
           const idx = row * 16 + col;
-          const cls = idx === current ? "ram-cell current" : "ram-cell";
-          const title = idx === current
-            ? `B points here: RAM[${hex(row, 1)},${hex(col, 1)}]`
-            : `RAM[${hex(row, 1)},${hex(col, 1)}]`;
-          html += `<input class="${{cls}}" title="${{title}}" data-ram="${{idx}}" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false" maxlength="1" value="${{hex(state.M[idx], 1)}}">`;
+          const input = grid.querySelector(`[data-ram="${idx}"]`);
+          if (!input) continue;
+          const classes = ["ram-cell"];
+          if (idx === current) classes.push("current");
+          if (idx === selectedRamAddr) classes.push("selected");
+          if (ramWriteWatchpoints.has(idx)) classes.push("watch");
+          input.className = classes.join(" ");
+          const writer = lastWriteLogicalByAddr[idx];
+          input.title = `${idx === current ? "B points here. " : ""}${idx === selectedRamAddr ? "Selected. " : ""}RAM[${hex(row, 1)},${hex(col, 1)}]${ramWriteWatchpoints.has(idx) ? " [write breakpoint]" : ""}${writer == null ? "" : ` [last write ${oct(writer, 4)}]`}`;
+          if (document.activeElement !== input) input.value = hex(state.M[idx], 1);
         }}
       }}
-      grid.innerHTML = html;
     }}
 
     function renderDisasm() {{
       const root = document.getElementById("disasm");
       const currentLogical = getLogicalPC();
+      const previousLogical = previousLogicalPC;
+      if (root.dataset.initialized) {{
+        for (const line of root.querySelectorAll(".line.instr")) {{
+          const logical = Number(line.dataset.logical);
+          line.classList.toggle("current", logical === currentLogical);
+          line.classList.toggle("previous", logical === previousLogical && logical !== currentLogical);
+          line.classList.toggle("selected", logical === selectedLogical);
+          line.classList.toggle("breakpoint", breakpoints.has(logical));
+        }}
+        return;
+      }}
       const escapeHtml = (text) =>
         (text || "")
           .replace(/&/g, "&amp;")
@@ -1316,6 +1666,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       root.innerHTML = DISASM_LINES.map((line, index) => {{
         const classes = ["line", line.type];
         if (line.type === "instr" && line.logical === currentLogical) classes.push("current");
+        if (line.type === "instr" && line.logical === previousLogical && line.logical !== currentLogical) classes.push("previous");
         if (line.type === "instr" && line.logical === selectedLogical) classes.push("selected");
         if (line.type === "instr" && breakpoints.has(line.logical)) classes.push("breakpoint");
         const logicalAttr = line.type === "instr" ? ` data-logical="${{line.logical}}"` : "";
@@ -1340,17 +1691,50 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           `${{oct(line.logical, 4)}} @${{oct(line.physical, 4)}}  ${{oct(line.opcode, 3)}}  `;
         return `<div class="${{classes.join(" ")}}" data-index="${{index}}"${{logicalAttr}}>${{prefix}}${{bodyHtml}}</div>`;
       }}).join("");
+      root.dataset.initialized = "1";
     }}
 
     function renderTrace() {{
       document.getElementById("trace-list").textContent = trace.join("\\n");
     }}
 
+    function renderDisplay() {{
+      const root = document.getElementById("display-wrap");
+      const active = activeDisplayDigit();
+      const selected = state.displaySelected % 9;
+      const digits = [];
+      const segNames = ["a", "b", "c", "d", "e", "f", "g"];
+      for (let i = 0; i < 9; i++) {{
+        const seg = state.visibleDigits[i] & 0xFF;
+        const glyph = state.visibleGlyphs[i] || " ";
+        const lit = new Set(GLYPH_SEGMENTS[glyph] || GLYPH_SEGMENTS["?"]);
+        const segHtml = segNames.map((name) => `<div class="seg ${name}${lit.has(name) ? " on" : ""}"></div>`).join("");
+        digits.push(`
+          <div class="calc-digit${active === i ? " active" : ""}${selected === i ? " selected" : ""}" title="digit ${i} seg=${hex(seg, 2)} reg=${state.dsReg[i] & 1}">
+            <div class="sevenseg">
+              ${segHtml}
+              <div class="calc-dot${seg & 0x80 ? " on" : ""}"></div>
+            </div>
+          </div>
+        `);
+      }}
+      root.innerHTML = `
+        <div class="display-status">
+          <span>latched digit=${active >= 0 ? active : "--"}</span>
+          <span>selected digit=${selected}</span>
+          <span>scan=${state.dsScan}</span>
+          <span>DS reg=${state.dsReg.map((bit) => bit ? "1" : "0").join("")}</span>
+          <span>S=${hex(state.S, 2)}</span>
+        </div>
+        <div class="calc-display">${digits.join("")}</div>
+      `;
+    }}
+
     function renderKeypad() {{
       const root = document.getElementById("keypad");
       const scanRow = decodedScanRow(state.D);
       const expectedMask = expectedKForD(state.D);
-      const kMask = kinput(state.D);
+      const liveMask = kinput(state.D);
       const heldKeys = KEYS.filter((key) => pressedKeys.has(key.id));
       const heldLabels = heldKeys.map((key) => key.label);
       const heldOnRow = heldKeys.filter((key) => key.row === scanRow);
@@ -1358,7 +1742,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       for (const key of heldOnRow) heldRowMask |= key.bit;
       const sensed = [];
       for (const [net, bit] of Object.entries(NET_TO_BIT)) {{
-        if (kMask & bit) sensed.push(net);
+        if (liveMask & bit) sensed.push(net);
       }}
       const expectedSensed = [];
       for (const [net, bit] of Object.entries(NET_TO_BIT)) {{
@@ -1380,8 +1764,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           <span>row-held mask=${hex(heldRowMask, 1)}</span>
           <span>expected K=${hex(expectedMask, 1)}</span>
           <span>expected nets=${expectedSensed.length ? expectedSensed.join(",") : "--"}</span>
-          <span>K=${hex(kMask, 1)}</span>
-          <span>nets=${sensed.length ? sensed.join(",") : "--"}</span>
+          <span>live K=${hex(liveMask, 1)}</span>
+          <span>live nets=${sensed.length ? sensed.join(",") : "--"}</span>
+          <span>F2=${state.F2}</span>
         </div>
         <div class="keypad-top">${top}</div>
         <div class="keypad-grid">${main}</div>
@@ -1392,6 +1777,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     function renderAll() {{
       renderRegisterGrid();
       renderFlagGrid();
+      renderDisplay();
       renderKeypad();
       renderStatus();
       renderRam();
@@ -1405,6 +1791,8 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         const el = document.getElementById(id);
         if (el) el.disabled = isRunning;
       }}
+      const gotoWriter = document.getElementById("goto-writer-btn");
+      if (gotoWriter) gotoWriter.disabled = isRunning || selectedRamAddr == null || lastWriteLogicalByAddr[selectedRamAddr & 0x7F] == null;
     }}
 
     function parseNumber(text, fallbackBase = 10) {{
@@ -1459,7 +1847,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           case "Br":
           case "Bd":
           case "D":
-          case "K":
           case "serbuf":
             state[name] = parseHex(value) & 0xF;
             break;
@@ -1511,18 +1898,20 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       el.select();
     }}
 
-    function stepMany(count) {{
-      syncUiToState();
-      for (let i = 0; i < count; i++) {{
-        if (i > 0 && breakpoints.has(getLogicalPC())) {{
-          noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
-          renderTrace();
-          renderDisasm();
-          scrollToPc();
-          return;
-        }}
-        stepOne(false);
-      }}
+    function gotoWriterForSelectedRam() {{
+      if (selectedRamAddr == null) return;
+      const logical = lastWriteLogicalByAddr[selectedRamAddr & 0x7F];
+      if (logical == null) return;
+      setPCFromLogical(logical);
+      renderAll();
+      scrollToPc();
+    }}
+
+    function stopForRamWriteWatchpoint() {{
+      if (lastRamWriteWatchHit == null) return false;
+      renderAll();
+      scrollToPc();
+      return true;
     }}
 
     function animationEnabled() {{
@@ -1532,11 +1921,68 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     function animationDelayMs() {{
       const raw = Number(document.getElementById("animate-delay").value);
       if (!Number.isFinite(raw)) return 80;
-      return Math.max(10, Math.min(2000, raw));
+      return Math.max(0, Math.min(2000, raw));
+    }}
+
+    function breakpointsEnabled() {{
+      const el = document.getElementById("breakpoints-toggle");
+      return !el || el.checked;
     }}
 
     function sleep(ms) {{
       return new Promise((resolve) => setTimeout(resolve, ms));
+    }}
+
+    function nextPaint() {{
+      return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    }}
+
+    function renderStopState() {{
+      renderAll();
+      scrollToPc();
+    }}
+
+    function shouldStopAtBreakpoint(i) {{
+      return i > 0 && breakpointsEnabled() && breakpoints.has(getLogicalPC());
+    }}
+
+    function returnWouldExecuteNow() {{
+      const opcode = currentOpcode();
+      return !state.skip && (opcode === 0x40 || opcode === 0x41);
+    }}
+
+    async function maybeAnimateStepResult(result, animated, i) {{
+      if (stopForRamWriteWatchpoint()) return true;
+      if (animated) {{
+        await nextPaint();
+        const delay = animationDelayMs();
+        if (delay > 0) await sleep(delay);
+      }} else {{
+        if (result && result.dspsExecuted) {{
+          renderAll();
+          await nextPaint();
+        }} else if ((i & 0x3F) === 0x3F) {{
+          await sleep(0);
+        }}
+      }}
+      return false;
+    }}
+
+    function stepMany(count) {{
+      syncUiToState();
+      for (let i = 0; i < count; i++) {{
+        if (shouldStopAtBreakpoint(i)) {{
+          noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
+          renderStopState();
+          return;
+        }}
+        const result = stepOne(false, false);
+        if (lastRamWriteWatchHit != null) {{
+          renderStopState();
+          return;
+        }}
+        if (result && result.dspsExecuted) renderAll();
+      }}
     }}
 
     async function runAnimatedSteps(count) {{
@@ -1549,20 +1995,16 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         for (let i = 0; i < count; i++) {{
           if (stopRequested) {{
             noteTrace("run stopped by Escape");
-            renderTrace();
-            renderDisasm();
-            scrollToPc();
+            renderStopState();
             return;
           }}
-          if (i > 0 && breakpoints.has(getLogicalPC())) {{
+          if (shouldStopAtBreakpoint(i)) {{
             noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
-            renderTrace();
-            renderDisasm();
-            scrollToPc();
+            renderStopState();
             return;
           }}
-          stepOne(false);
-          await sleep(animationDelayMs());
+          const result = stepOne(false, true);
+          if (await maybeAnimateStepResult(result, true, i)) return;
         }}
       }} finally {{
         isRunning = false;
@@ -1579,23 +2021,19 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       updateControls();
       try {{
         for (let i = 0; i < maxSteps; i++) {{
+          const animated = animationEnabled();
           if (stopRequested) {{
             noteTrace("continue stopped by Escape");
-            renderTrace();
-            renderDisasm();
-            scrollToPc();
+            renderStopState();
             return;
           }}
-          if (i > 0 && breakpoints.has(getLogicalPC())) {{
+          if (shouldStopAtBreakpoint(i)) {{
             noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
-            renderTrace();
-            renderDisasm();
-            scrollToPc();
+            renderStopState();
             return;
           }}
-          stepOne(false);
-          if (animationEnabled()) await sleep(animationDelayMs());
-          else if ((i & 0x3F) === 0x3F) await sleep(0);
+          const result = stepOne(false, animated);
+          if (await maybeAnimateStepResult(result, animated, i)) return;
         }}
         noteTrace(`continue stopped after ${maxSteps} steps`);
         renderTrace();
@@ -1609,21 +2047,21 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     function stepUntilReturn(maxSteps = 10000) {{
       syncUiToState();
       for (let i = 0; i < maxSteps; i++) {{
-        if (i > 0 && breakpoints.has(getLogicalPC())) {{
+        if (shouldStopAtBreakpoint(i)) {{
           noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
-          renderTrace();
-          renderDisasm();
-          scrollToPc();
+          renderStopState();
           return;
         }}
-        const opcode = currentOpcode();
-        const willExecuteReturn = !state.skip && (opcode === 0x40 || opcode === 0x41);
-        if (willExecuteReturn) {{
-          renderAll();
-          scrollToPc();
+        if (returnWouldExecuteNow()) {{
+          renderStopState();
           return;
         }}
-        stepOne(false);
+        const result = stepOne(false, false);
+        if (lastRamWriteWatchHit != null) {{
+          renderStopState();
+          return;
+        }}
+        if (result && result.dspsExecuted) renderAll();
       }}
       noteTrace(`step-until-return stopped after ${maxSteps} steps without executing RET/RETS`);
       renderTrace();
@@ -1639,27 +2077,20 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         for (let i = 0; i < maxSteps; i++) {{
           if (stopRequested) {{
             noteTrace("run-to-return stopped by Escape");
-            renderTrace();
-            renderDisasm();
-            scrollToPc();
+            renderStopState();
             return;
           }}
-          if (i > 0 && breakpoints.has(getLogicalPC())) {{
+          if (shouldStopAtBreakpoint(i)) {{
             noteTrace(`stopped at breakpoint ${oct(getLogicalPC(), 4)}`);
-            renderTrace();
-            renderDisasm();
-            scrollToPc();
+            renderStopState();
             return;
           }}
-          const opcode = currentOpcode();
-          const willExecuteReturn = !state.skip && (opcode === 0x40 || opcode === 0x41);
-          if (willExecuteReturn) {{
-            renderAll();
-            scrollToPc();
+          if (returnWouldExecuteNow()) {{
+            renderStopState();
             return;
           }}
-          stepOne(false);
-          await sleep(animationDelayMs());
+          const result = stepOne(false, true);
+          if (await maybeAnimateStepResult(result, true, i)) return;
         }}
         noteTrace(`step-until-return stopped after ${maxSteps} steps without executing RET/RETS`);
         renderTrace();
@@ -1683,11 +2114,12 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     document.getElementById("reset-btn").addEventListener("click", () => resetState());
     document.getElementById("apply-btn").addEventListener("click", () => applyEdits());
     document.getElementById("goto-pc-btn").addEventListener("click", () => scrollToPc());
+    document.getElementById("goto-writer-btn").addEventListener("click", () => gotoWriterForSelectedRam());
 
     document.getElementById("disasm").addEventListener("click", (event) => {{
       const line = event.target.closest(".line.instr");
       if (!line) return;
-      if (event.shiftKey) {{
+      if (event.metaKey) {{
         const logical = Number(line.dataset.logical);
         if (breakpoints.has(logical)) breakpoints.delete(logical);
         else breakpoints.add(logical);
@@ -1703,12 +2135,39 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     document.getElementById("ram-grid").addEventListener("input", (event) => {{
       const input = event.target.closest("[data-ram]");
       if (!input) return;
+      const idx = Number(input.dataset.ram);
+      selectedRamAddr = idx;
       const raw = (input.value || "").toUpperCase().replace(/[^0-9A-F]/g, "");
       input.value = raw.slice(-1);
+      state.M[idx] = parseHex(input.value || "0") & 0xF;
       if (input.value.length === 1) {{
-        const idx = Number(input.dataset.ram);
         focusRamCell(idx + 1);
       }}
+      renderStatus();
+      renderRam();
+      updateControls();
+    }});
+
+    document.getElementById("ram-grid").addEventListener("click", (event) => {{
+      const input = event.target.closest("[data-ram]");
+      if (!input || event.metaKey) return;
+      selectedRamAddr = Number(input.dataset.ram);
+      renderStatus();
+      renderRam();
+      updateControls();
+    }});
+
+    document.getElementById("ram-grid").addEventListener("pointerdown", (event) => {{
+      const input = event.target.closest("[data-ram]");
+      if (!input) return;
+      const idx = Number(input.dataset.ram);
+      if (!event.metaKey) return;
+      event.preventDefault();
+      if (ramWriteWatchpoints.has(idx)) ramWriteWatchpoints.delete(idx);
+      else ramWriteWatchpoints.add(idx);
+      renderRam();
+      renderStatus();
+      updateControls();
     }});
 
     document.getElementById("ram-grid").addEventListener("keydown", (event) => {{
@@ -1741,7 +2200,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }};
 
     document.getElementById("keypad").addEventListener("pointerdown", toggleHeldKeyFromEvent);
-    document.getElementById("keypad").addEventListener("click", toggleHeldKeyFromEvent);
 
     document.getElementById("keypad-row-mode").addEventListener("change", () => {{
       renderKeypad();
@@ -1755,6 +2213,10 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }});
 
     document.getElementById("invert-k").addEventListener("change", () => {{
+      renderKeypad();
+    }});
+
+    document.getElementById("wire-k3-f2").addEventListener("change", () => {{
       renderKeypad();
     }});
 
@@ -1802,7 +2264,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
 def main() -> None:
     root = Path(__file__).resolve().parent
     rom_path = root / "sinclaircambridgeprogrammable.bin"
-    disasm_path = root / "analysis" / "sinclaircambridgeprogrammable.dan.txt"
+    disasm_path = root / "analysis" / "sinclaircambridgeprogrammable.dan.asm"
     output_path = root / "analysis" / "mm5799_debugger.html"
 
     rom = load_rom(rom_path)
