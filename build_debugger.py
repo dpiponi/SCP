@@ -235,7 +235,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
     .app {{
       display: grid;
-      grid-template-columns: 400px 380px 1fr;
+      grid-template-columns: 400px 460px 1fr;
       height: 100vh;
       gap: 12px;
       padding: 12px;
@@ -262,7 +262,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       grid-template-rows: 1fr;
       gap: 12px;
       min-height: 0;
-      overflow: hidden;
+      overflow: auto;
     }}
     .section {{
       padding: 12px 14px;
@@ -523,6 +523,111 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     .display-wrap {{
       display: grid;
       gap: 10px;
+    }}
+    .hardware-panel {{
+      overflow: auto;
+    }}
+    .hardware-wrap {{
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      margin: 0 auto;
+      aspect-ratio: 1671 / 3652;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: url("calculator_cropped_tight10_cleaned_strong.png") center/cover no-repeat;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+      touch-action: manipulation;
+      user-select: none;
+    }}
+    .hardware-display {{
+      position: absolute;
+      left: 5.07%;
+      top: 8.03%;
+      width: 89.80%;
+      height: 7.91%;
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      gap: 2px;
+      pointer-events: none;
+    }}
+    .hardware-digit {{
+      position: relative;
+      border-radius: 3px;
+    }}
+    .hardware-digit.active {{
+      box-shadow: inset 0 0 0 1px rgba(80, 160, 255, 0.7);
+    }}
+    .hardware-digit.selected {{
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.85);
+    }}
+    .hw-sevenseg {{
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }}
+    .hw-seg {{
+      position: absolute;
+      background: rgba(255, 28, 40, 0.08);
+      transition: background 80ms linear, box-shadow 80ms linear;
+    }}
+    .hw-seg.on {{
+      background: rgba(255, 65, 92, 0.9);
+      box-shadow: 0 0 7px rgba(255, 35, 70, 0.52);
+    }}
+    .hw-seg.a, .hw-seg.d, .hw-seg.g {{
+      width: 58%;
+      height: 10%;
+      left: 21%;
+      border-radius: 4px;
+    }}
+    .hw-seg.a {{ top: 2%; }}
+    .hw-seg.g {{ top: 45%; }}
+    .hw-seg.d {{ bottom: 2%; }}
+    .hw-seg.b, .hw-seg.c, .hw-seg.e, .hw-seg.f {{
+      width: 12%;
+      height: 34%;
+      border-radius: 4px;
+    }}
+    .hw-seg.f {{ left: 6%; top: 7%; }}
+    .hw-seg.b {{ right: 6%; top: 7%; }}
+    .hw-seg.e {{ left: 6%; bottom: 7%; }}
+    .hw-seg.c {{ right: 6%; bottom: 7%; }}
+    .hw-dot {{
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 12%;
+      height: 12%;
+      border-radius: 50%;
+      background: rgba(255, 35, 70, 0.09);
+    }}
+    .hw-dot.on {{
+      background: rgba(255, 92, 120, 0.95);
+      box-shadow: 0 0 7px rgba(255, 55, 86, 0.55);
+    }}
+    .hw-key {{
+      position: absolute;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: transparent;
+      cursor: pointer;
+      transition: box-shadow 100ms linear, background 100ms linear, border-color 100ms linear;
+    }}
+    .hw-key.active {{
+      border-color: rgba(71, 129, 205, 0.95);
+      background: rgba(71, 129, 205, 0.2);
+      box-shadow: inset 0 0 0 1px rgba(71, 129, 205, 0.55);
+    }}
+    .hw-key.scanned {{
+      border-color: rgba(44, 159, 86, 0.95);
+      background: rgba(44, 159, 86, 0.25);
+      box-shadow: inset 0 0 0 1px rgba(44, 159, 86, 0.55);
+    }}
+    .hw-key.active.scanned {{
+      border-width: 2px;
+      box-shadow: inset 0 0 0 1px rgba(44, 159, 86, 0.75);
     }}
     .display-status {{
       display: flex;
@@ -816,23 +921,12 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     </div>
 
     <div class="middle">
-      <div class="panel">
+      <div class="panel hardware-panel">
         <div class="section">
-          <strong>Display</strong>
+          <strong>Hardware</strong>
+          <div class="hardware-wrap" id="hardware-wrap"></div>
           <div class="small-note">
-            Simplified display model: <code>BTD</code> selects the visible digit, and each <code>DSPS</code> writes the decoded symbol into that digit.
-          </div>
-          <div class="display-wrap" id="display-wrap"></div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="section">
-          <strong>Keypad</strong>
-          <div class="small-note">
-            Best-effort keypad wiring from the documented matrix plus the observed foil nets. Click to hold/release a key.
-            The scan side is `out 3..8`; the sensed side is `K1..K4`, which matches the four foil groups:
-            low digits = `K1`, high digits/`EE` = `K2`, operators = `K3`, top control keys = `K4`.
+            Click keys on the photo. Blue = held/toggled, green = currently scanned row.
           </div>
           <div class="keypad-wrap" id="keypad"></div>
           <div class="keypad-controls">
@@ -840,8 +934,8 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
               <span>Row decode</span>
               <select id="keypad-row-mode">
                 <option value="direct">D = out number</option>
-                <option value="offset2">D+2 = out number</option>
-                <option value="offset" selected>D+3 = out number</option>
+                <option value="offset2" selected>D+2 = out number</option>
+                <option value="offset">D+3 = out number</option>
                 <option value="offset4">D+4 = out number</option>
                 <option value="invert">~D = out number</option>
                 <option value="invert_offset">~D+3 = out number</option>
@@ -886,7 +980,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     const LOGICAL_TO_LINE = __LOGICAL_MAP_JSON__;
     const LFSR_INDEX_BY_WORD = Object.fromEntries(LFSR_SEQUENCE.map((word, index) => [word, index]));
     const SEGMENT_DATA = [0x7f, 0x40, 0x79, 0x24, 0x30, 0x19, 0x12, 0x02, 0x78, 0x10, 0x06, 0x23, 0x06, 0x66, 0x6f, 0x01, 0x02, 0x08, 0x04];
-    const SEGMENT_GLYPHS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "b", "C", "d", "E", " ", "-", "c", "?"];
+    const SEGMENT_GLYPHS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "b", "F", "G", "E", " ", "-", "c", "?"];
     const NET_TO_BIT = {{K1: 0x1, K2: 0x2, K3: 0x4, K4: 0x8}};
     const KEYS = [
       {id: "shift", label: "^v", row: 3, net: "K4", group: "top"},
@@ -910,6 +1004,20 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       {id: "div", label: "/", row: 5, net: "K3", group: "main"},
     ].map((key) => ({{...key, bit: NET_TO_BIT[key.net]}}));
     const KEY_BY_ID = Object.fromEntries(KEYS.map((key) => [key.id, key]));
+    // Physical keypad order (top-left by row):
+    // [EE, ^/v, C/CE, ON/OFF]
+    // [7, 8, 9, RUN]
+    // [4, 5, 6, /]
+    // [1, 2, 3, x]
+    // [0, =, +, -]
+    const KEY_HOTSPOTS = {
+      shift: {col: 1, row: 0}, cce: {col: 2, row: 0}, run: {col: 3, row: 1},
+      "0": {col: 0, row: 4}, "1": {col: 0, row: 3}, "2": {col: 1, row: 3}, "3": {col: 2, row: 3},
+      "4": {col: 0, row: 2}, "5": {col: 1, row: 2}, "6": {col: 2, row: 2},
+      "7": {col: 0, row: 1}, "8": {col: 1, row: 1}, "9": {col: 2, row: 1},
+      ee: {col: 0, row: 0}, eq: {col: 1, row: 4}, plus: {col: 2, row: 4},
+      minus: {col: 3, row: 4}, mul: {col: 3, row: 3}, div: {col: 3, row: 2},
+    };
 
     const state = {{
       Pp: 0,
@@ -1027,6 +1135,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       "d": ["b", "c", "d", "e", "g"],
       "E": ["a", "d", "e", "f", "g"],
       "F": ["a", "e", "f", "g"],
+      "G": ["a", "c", "d", "e", "f"],
       "-": ["g"],
     }};
 
@@ -1698,8 +1807,50 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       document.getElementById("trace-list").textContent = trace.join("\\n");
     }}
 
+    function renderHardware() {{
+      const root = document.getElementById("hardware-wrap");
+      if (!root) return;
+      const active = activeDisplayDigit();
+      const selected = state.displaySelected % 9;
+      const segNames = ["a", "b", "c", "d", "e", "f", "g"];
+      const digits = [];
+      for (let i = 0; i < 9; i++) {{
+        const seg = state.visibleDigits[i] & 0xFF;
+        const glyph = state.visibleGlyphs[i] || " ";
+        const lit = new Set(GLYPH_SEGMENTS[glyph] || GLYPH_SEGMENTS["?"]);
+        const segHtml = segNames.map((name) => `<div class="hw-seg ${name}${lit.has(name) ? " on" : ""}"></div>`).join("");
+        digits.push(`
+          <div class="hardware-digit${active === i ? " active" : ""}${selected === i ? " selected" : ""}" title="digit ${i} seg=${hex(seg, 2)} reg=${state.dsReg[i] & 1}">
+            <div class="hw-sevenseg">
+              ${segHtml}
+              <div class="hw-dot${seg & 0x80 ? " on" : ""}"></div>
+            </div>
+          </div>
+        `);
+      }}
+      const scanRow = decodedScanRow(state.D);
+      const keys = KEYS.map((key) => {{
+        const p = KEY_HOTSPOTS[key.id];
+        if (!p) return "";
+        const left = 17.06 + p.col * 22.23 - 15.62 / 2;
+        const top = 52.15 + p.row * 10.18 - 5.94 / 2;
+        const activeCls = pressedKeys.has(key.id) ? " active" : "";
+        const scannedCls = key.row === scanRow ? " scanned" : "";
+        return `<button class="hw-key${activeCls}${scannedCls}" type="button" data-key="${key.id}" style="left:${left}%;top:${top}%;width:15.62%;height:5.94%;" title="${key.label}"></button>`;
+      }}).join("");
+      const powerLeft = 17.06 + 3 * 22.23 - 15.62 / 2;
+      const powerTop = 52.15 + 0 * 10.18 - 5.94 / 2;
+      const power = `<button class="hw-key" type="button" data-action="power" style="left:${powerLeft}%;top:${powerTop}%;width:15.62%;height:5.94%;" title="ON/OFF (mapped to Reset)"></button>`;
+      root.innerHTML = `
+        <div class="hardware-display">${digits.join("")}</div>
+        ${keys}
+        ${power}
+      `;
+    }}
+
     function renderDisplay() {{
       const root = document.getElementById("display-wrap");
+      if (!root) return;
       const active = activeDisplayDigit();
       const selected = state.displaySelected % 9;
       const digits = [];
@@ -1748,13 +1899,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       for (const [net, bit] of Object.entries(NET_TO_BIT)) {{
         if (expectedMask & bit) expectedSensed.push(net);
       }}
-      const renderKey = (key) => {{
-        const active = pressedKeys.has(key.id) ? " active" : "";
-        const scanned = key.row === scanRow ? " scanned" : "";
-        return `<button class="key${active}${scanned}" type="button" data-key="${key.id}" title="out ${key.row}, ${key.net}, mask ${hex(key.bit, 1)}">${key.label}</button>`;
-      }};
-      const top = KEYS.filter((key) => key.group === "top").map(renderKey).join("");
-      const main = KEYS.filter((key) => key.group === "main").map(renderKey).join("");
       root.innerHTML = `
         <div class="keypad-status">
           <span>D=${hex(state.D, 1)}</span>
@@ -1768,8 +1912,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           <span>live nets=${sensed.length ? sensed.join(",") : "--"}</span>
           <span>F2=${state.F2}</span>
         </div>
-        <div class="keypad-top">${top}</div>
-        <div class="keypad-grid">${main}</div>
         <div class="key-meta">Held keys are returned by kinput(D) when the CPU scans that row. If Force K is set, it overrides the guessed keypad matrix.</div>
       `;
     }}
@@ -1777,6 +1919,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     function renderAll() {{
       renderRegisterGrid();
       renderFlagGrid();
+      renderHardware();
       renderDisplay();
       renderKeypad();
       renderStatus();
@@ -2190,6 +2333,12 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }});
 
     const toggleHeldKeyFromEvent = (event) => {{
+      const actionEl = event.target.closest("[data-action]");
+      if (actionEl && actionEl.dataset.action === "power") {{
+        event.preventDefault();
+        resetState();
+        return;
+      }}
       const keyEl = event.target.closest("[data-key]");
       if (!keyEl) return;
       event.preventDefault();
@@ -2200,6 +2349,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }};
 
     document.getElementById("keypad").addEventListener("pointerdown", toggleHeldKeyFromEvent);
+    document.getElementById("hardware-wrap").addEventListener("pointerdown", toggleHeldKeyFromEvent);
 
     document.getElementById("keypad-row-mode").addEventListener("change", () => {{
       renderKeypad();
