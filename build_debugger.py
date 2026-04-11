@@ -596,7 +596,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     .hw-seg.c {{ right: 6%; bottom: 7%; }}
     .hw-dot {{
       position: absolute;
-      right: 0;
+      right: -8%;
       bottom: 0;
       width: 12%;
       height: 12%;
@@ -882,6 +882,10 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
               <span>Delay ms</span>
               <input type="number" id="animate-delay" min="0" max="2000" step="10" value="0">
             </label>
+            <label class="toolbar-option" for="lb05-as-04">
+              <input type="checkbox" id="lb05-as-04" checked>
+              <span>LB 05-&gt;04</span>
+            </label>
           </div>
           <div class="status-strip" id="status-strip"></div>
         </div>
@@ -1129,7 +1133,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       "8": ["a", "b", "c", "d", "e", "f", "g"],
       "9": ["a", "b", "c", "d", "f", "g"],
       "A": ["a", "b", "c", "e", "f", "g"],
-      "b": ["c", "d", "e", "f", "g"],
+      "b": ["g"],
       "C": ["a", "d", "e", "f"],
       "c": ["d", "e", "g"],
       "d": ["b", "c", "d", "e", "g"],
@@ -1215,6 +1219,11 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
 
     function wireK3ToF2Enabled() {{
       const el = document.getElementById("wire-k3-f2");
+      return !!(el && el.checked);
+    }}
+
+    function lb05As04Enabled() {{
+      const el = document.getElementById("lb05-as-04");
       return !!(el && el.checked);
     }}
 
@@ -1400,7 +1409,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             if (!state.wasLB) {{
               state.Br = (opcode >> 4) & 0x3;
               tmp = opcode & 0x0F;
-              if (tmp === 0x0A) state.Bd = 5;
+              if (tmp === 0x0A) state.Bd = lb05As04Enabled() ? 4 : 5;
               else if (tmp >= 0x0B) state.Bd = tmp;
             }}
             state.wasLB = true;
@@ -2368,6 +2377,11 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
 
     document.getElementById("wire-k3-f2").addEventListener("change", () => {{
       renderKeypad();
+    }});
+
+    document.getElementById("lb05-as-04").addEventListener("change", () => {{
+      renderStatus();
+      renderTrace();
     }});
 
     document.addEventListener("keydown", (event) => {{
