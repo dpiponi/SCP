@@ -142,6 +142,7 @@
     let running = false;
     let powerEnabled = false;
     let heldKeyId = null;
+    let suppressMouseUntil = 0;
     const pressedKeys = new Set();
     const hwDigitEls = [];
     const hwDigitSegEls = [];
@@ -435,23 +436,30 @@
       renderHardware();
     };
 
+    const handleTouchStart = (event) => {
+      suppressMouseUntil = Date.now() + 800;
+      handlePressStart(event);
+    };
+
+    const handleMouseStart = (event) => {
+      if (Date.now() < suppressMouseUntil) return;
+      handlePressStart(event);
+    };
+
+    const handleTouchEnd = () => handlePressEnd();
+    const handleMouseEnd = () => {
+      if (Date.now() < suppressMouseUntil) return;
+      handlePressEnd();
+    };
+
     function bindPressHandlers(el) {
-      if (window.PointerEvent) {
-        el.addEventListener("pointerdown", handlePressStart);
-      } else {
-        el.addEventListener("touchstart", handlePressStart, {passive: false});
-        el.addEventListener("mousedown", handlePressStart);
-      }
+      el.addEventListener("touchstart", handleTouchStart, {passive: false});
+      el.addEventListener("mousedown", handleMouseStart);
     }
 
-    if (window.PointerEvent) {
-      document.addEventListener("pointerup", handlePressEnd);
-      document.addEventListener("pointercancel", handlePressEnd);
-    } else {
-      document.addEventListener("touchend", handlePressEnd, {passive: false});
-      document.addEventListener("touchcancel", handlePressEnd, {passive: false});
-      document.addEventListener("mouseup", handlePressEnd);
-    }
+    document.addEventListener("touchend", handleTouchEnd, {passive: false});
+    document.addEventListener("touchcancel", handleTouchEnd, {passive: false});
+    document.addEventListener("mouseup", handleMouseEnd);
 
     powerOffStop();
   </script>
