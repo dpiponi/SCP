@@ -227,31 +227,6 @@
       margin-top: 8px;
       line-height: 1.4;
     }
-    .status-strip {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      font-family: var(--font-code);
-      font-size: 13px;
-      margin-top: 8px;
-      min-height: 34px;
-      align-items: flex-start;
-    }
-    .status-strip span {
-      background: #f5eee1;
-      border: 1px solid var(--line);
-      padding: 4px 8px;
-      border-radius: 999px;
-    }
-    .status-strip span.pending-skip {
-      background: #ffe5c9;
-      border-color: #d58b3f;
-      color: #7a3f00;
-      font-weight: 700;
-    }
-    .status-strip span.pending-skip.idle {
-      visibility: hidden;
-    }
     .ram-wrap {
       padding: 0 14px 14px;
       overflow: auto;
@@ -655,12 +630,7 @@
               <span>Delay ms</span>
               <input type="number" id="animate-delay" min="0" max="2000" step="10" value="0">
             </label>
-            <label class="toolbar-option" for="lb05-value">
-              <span>LB(r,5)</span>
-              <input type="text" id="lb05-value" value="4" placeholder="hex">
-            </label>
           </div>
-          <div class="status-strip" id="status-strip"></div>
         </div>
       </div>
 
@@ -689,12 +659,6 @@
             Hold keys on the photo. Blue = held, green = currently scanned row.
           </div>
           <div class="keypad-wrap" id="keypad"></div>
-          <div class="keypad-controls">
-            <label class="toolbar-option" for="force-k">
-              <span>Force K</span>
-              <input type="text" id="force-k" value="" placeholder="hex">
-            </label>
-          </div>
         </div>
       </div>
     </div>
@@ -801,6 +765,11 @@
     let lastRamWriteWatchHit = null;
     let selectedRamAddr = null;
     const lastWriteLogicalByAddr = new Array(128).fill(null);
+    const HW_SEG_NAMES = ["a", "b", "c", "d", "e", "f", "g"];
+    const hwDigitEls = [];
+    const hwDigitSegEls = [];
+    const hwDotEls = [];
+    const hwKeyElsById = Object.create(null);
 
     function decodedScanRow(d) {
       return (d & 0xF) + 2;
@@ -917,24 +886,11 @@
     }
 
     function kinput(_d) {
-      let mask = 0;
-      const forcedEl = document.getElementById("force-k");
-      if (forcedEl) {
-        const forced = (forcedEl.value || "").trim().toUpperCase().replace(/[^0-9A-F]/g, "");
-        if (forced !== "") mask = parseInt(forced.slice(-1), 16) & 0xF;
-        else mask = expectedKForD(_d);
-      } else {
-        mask = expectedKForD(_d);
-      }
-      return mask & 0xF;
+      return expectedKForD(_d) & 0xF;
     }
 
     function lb05Value() {
-      const el = document.getElementById("lb05-value");
-      if (!el) return 4;
-      const raw = (el.value || "").trim().toUpperCase().replace(/[^0-9A-F]/g, "");
-      if (raw === "") return 4;
-      return parseInt(raw.slice(-1), 16) & 0xF;
+      return 4;
     }
 
     function expectedKForD(_d) {
@@ -1387,29 +1343,12 @@
     }
 
     function renderStatus() {
-      const status = document.getElementById("status-strip");
       const b = getB();
       const row = b >> 4;
       const col = b & 0xF;
       const value = state.M[b] & 0xF;
-      const selected = selectedRamAddr == null ? null : (selectedRamAddr & 0x7F);
-      const selRow = selected == null ? null : (selected >> 4);
-      const selCol = selected == null ? null : (selected & 0xF);
-      const selWrite = selected == null ? null : lastWriteLogicalByAddr[selected];
-      status.innerHTML = `
-        <span>logical ${oct(getLogicalPC(), 4)}</span>
-        <span>prev ${previousLogicalPC == null ? "----" : oct(previousLogicalPC, 4)}</span>
-        <span>raw ${oct(getRawPC(), 4)}</span>
-        <span>opcode ${oct(currentOpcode(), 3)}</span>
-        <span>${OPCODES[currentOpcode()] || "?"}</span>
-        <span>B=${hex(b, 2)}</span>
-        <span>RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}</span>
-        <span>sel ${selected == null ? "--" : `RAM[${hex(selRow, 1)},${hex(selCol, 1)}]`}</span>
-        <span>writer ${selWrite == null ? "----" : oct(selWrite, 4)}</span>
-        <span class="pending-skip${state.skip ? "" : " idle"}">next instruction will be skipped</span>
-      `;
       document.getElementById("code-meta").textContent =
-        `PC ${oct(getLogicalPC(), 4)}  prev ${previousLogicalPC == null ? "----" : oct(previousLogicalPC, 4)}  raw ${oct(getRawPC(), 4)}  B ${hex(b, 2)}  RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}`;
+        `PC ${oct(getLogicalPC(), 4)}  raw ${oct(getRawPC(), 4)}  B ${hex(b, 2)}  RAM[${hex(row, 1)},${hex(col, 1)}]=${hex(value, 1)}`;
     }
 
     function renderRam() {
@@ -1519,45 +1458,97 @@
       return;
     }
 
+    function ensureHardwareDom() {
+      const root = document.getElementById("hardware-wrap");
+      if (!root) return;
+      if (root.dataset.initialized) return;
+
+      const display = document.createElement("div");
+      display.className = "hardware-display";
+      for (let i = 0; i < 9; i++) {
+        const digit = document.createElement("div");
+        digit.className = "hardware-digit";
+        digit.dataset.digit = String(i);
+        const seven = document.createElement("div");
+        seven.className = "hw-sevenseg";
+        const segRefs = [];
+        for (const name of HW_SEG_NAMES) {
+          const seg = document.createElement("div");
+          seg.className = `hw-seg ${name}`;
+          seven.appendChild(seg);
+          segRefs.push(seg);
+        }
+        const dot = document.createElement("div");
+        dot.className = "hw-dot";
+        seven.appendChild(dot);
+        digit.appendChild(seven);
+        display.appendChild(digit);
+        hwDigitEls[i] = digit;
+        hwDigitSegEls[i] = segRefs;
+        hwDotEls[i] = dot;
+      }
+      root.appendChild(display);
+
+      for (const key of KEYS) {
+        const p = KEY_HOTSPOTS[key.id];
+        if (!p) continue;
+        const left = 17.06 + p.col * 22.23 - 15.62 / 2;
+        const top = 52.15 + p.row * 10.18 - 5.94 / 2;
+        const btn = document.createElement("button");
+        btn.className = "hw-key";
+        btn.type = "button";
+        btn.dataset.key = key.id;
+        btn.title = key.label;
+        btn.style.left = `${left}%`;
+        btn.style.top = `${top}%`;
+        btn.style.width = "15.62%";
+        btn.style.height = "5.94%";
+        root.appendChild(btn);
+        hwKeyElsById[key.id] = btn;
+      }
+      const powerLeft = 17.06 + 3 * 22.23 - 15.62 / 2;
+      const powerTop = 52.15 + 0 * 10.18 - 5.94 / 2;
+      const power = document.createElement("button");
+      power.className = "hw-key";
+      power.type = "button";
+      power.dataset.action = "power";
+      power.title = "ON/OFF (mapped to Reset)";
+      power.style.left = `${powerLeft}%`;
+      power.style.top = `${powerTop}%`;
+      power.style.width = "15.62%";
+      power.style.height = "5.94%";
+      root.appendChild(power);
+      root.dataset.initialized = "1";
+    }
+
     function renderHardware() {
       const root = document.getElementById("hardware-wrap");
       if (!root) return;
+      ensureHardwareDom();
       const active = activeDisplayDigit();
       const selected = state.displaySelected % 9;
-      const segNames = ["a", "b", "c", "d", "e", "f", "g"];
-      const digits = [];
       for (let i = 0; i < 9; i++) {
         const seg = state.visibleDigits[i] & 0xFF;
         const glyph = state.visibleGlyphs[i] || " ";
         const lit = new Set(GLYPH_SEGMENTS[glyph] || GLYPH_SEGMENTS["?"]);
-        const segHtml = segNames.map((name) => `<div class="hw-seg ${name}${lit.has(name) ? " on" : ""}"></div>`).join("");
-        digits.push(`
-          <div class="hardware-digit${active === i ? " active" : ""}${selected === i ? " selected" : ""}" title="digit ${i} seg=${hex(seg, 2)} reg=${state.dsReg[i] & 1}">
-            <div class="hw-sevenseg">
-              ${segHtml}
-              <div class="hw-dot${seg & 0x80 ? " on" : ""}"></div>
-            </div>
-          </div>
-        `);
+        const digitEl = hwDigitEls[i];
+        if (!digitEl) continue;
+        digitEl.classList.toggle("active", active === i);
+        digitEl.classList.toggle("selected", selected === i);
+        digitEl.title = `digit ${i} seg=${hex(seg, 2)} reg=${state.dsReg[i] & 1}`;
+        const segEls = hwDigitSegEls[i];
+        for (let s = 0; s < HW_SEG_NAMES.length; s++) {
+          segEls[s].classList.toggle("on", lit.has(HW_SEG_NAMES[s]));
+        }
+        hwDotEls[i].classList.toggle("on", !!(seg & 0x80));
       }
       const scanRow = decodedScanRow(state.D);
-      const keys = KEYS.map((key) => {
-        const p = KEY_HOTSPOTS[key.id];
-        if (!p) return "";
-        const left = 17.06 + p.col * 22.23 - 15.62 / 2;
-        const top = 52.15 + p.row * 10.18 - 5.94 / 2;
-        const activeCls = pressedKeys.has(key.id) ? " active" : "";
-        const scannedCls = key.row === scanRow ? " scanned" : "";
-        return `<button class="hw-key${activeCls}${scannedCls}" type="button" data-key="${key.id}" style="left:${left}%;top:${top}%;width:15.62%;height:5.94%;" title="${key.label}"></button>`;
-      }).join("");
-      const powerLeft = 17.06 + 3 * 22.23 - 15.62 / 2;
-      const powerTop = 52.15 + 0 * 10.18 - 5.94 / 2;
-      const power = `<button class="hw-key" type="button" data-action="power" style="left:${powerLeft}%;top:${powerTop}%;width:15.62%;height:5.94%;" title="ON/OFF (mapped to Reset)"></button>`;
-      root.innerHTML = `
-        <div class="hardware-display">${digits.join("")}</div>
-        ${keys}
-        ${power}
-      `;
+      for (const key of KEYS) {
+        const btn = hwKeyElsById[key.id];
+        if (!btn) continue;
+        btn.classList.toggle("active", pressedKeys.has(key.id));
+        btn.classList.toggle("scanned", key.row === scanRow);
+      }
     }
 
     function renderDisplay() {
@@ -1602,7 +1593,6 @@
     function renderAll() {
       renderRegisterGrid();
       renderHardware();
-      renderDisplay();
       renderKeypad();
       renderStatus();
       renderRam();
@@ -2047,21 +2037,6 @@
     document.getElementById("keypad").addEventListener("mousedown", handleKeyMouseDown);
     document.getElementById("hardware-wrap").addEventListener("mousedown", handleKeyMouseDown);
     document.addEventListener("mouseup", handleKeyMouseUp);
-
-    document.getElementById("force-k").addEventListener("input", (event) => {
-      const input = event.target;
-      const raw = (input.value || "").toUpperCase().replace(/[^0-9A-F]/g, "");
-      input.value = raw.slice(-1);
-      renderKeypad();
-    });
-
-    document.getElementById("lb05-value").addEventListener("input", (event) => {
-      const input = event.target;
-      const raw = (input.value || "").toUpperCase().replace(/[^0-9A-F]/g, "");
-      input.value = raw.slice(-1);
-      renderStatus();
-      renderTrace();
-    });
 
     document.addEventListener("keydown", (event) => {
       const target = event.target;
