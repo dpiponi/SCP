@@ -51,8 +51,10 @@ def build_html(rom: list[int]) -> str:
       justify-content: center;
       align-items: center;
       min-height: 100vh;
+      min-height: 100dvh;
       background: #111;
-      padding: 8px;
+      padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+        max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
       overflow: hidden;
     }
     .hardware-wrap {
@@ -62,6 +64,9 @@ def build_html(rom: list[int]) -> str:
       overflow: hidden;
       background: url("calculator_cropped_tight10_cleaned_strong.png") center/cover no-repeat;
       user-select: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
     .hardware-display {
       position: absolute;
@@ -96,6 +101,7 @@ def build_html(rom: list[int]) -> str:
       cursor: pointer;
       outline: none;
       -webkit-tap-highlight-color: transparent;
+      touch-action: none;
     }
     .hw-key:focus { outline: none; }
   </style>
@@ -174,7 +180,7 @@ def build_html(rom: list[int]) -> str:
 
     let running = false;
     let powerEnabled = false;
-    let heldMouseKey = null;
+    let heldKeyId = null;
     const pressedKeys = new Set();
     const hwDigitEls = [];
     const hwDigitSegEls = [];
@@ -304,7 +310,7 @@ def build_html(rom: list[int]) -> str:
       state.skip = false; state.wasLB = false;
       blankDisplay();
       pressedKeys.clear();
-      heldMouseKey = null;
+      heldKeyId = null;
       renderHardware();
     }
 
@@ -319,7 +325,7 @@ def build_html(rom: list[int]) -> str:
       running = false;
       blankDisplay();
       pressedKeys.clear();
-      heldMouseKey = null;
+      heldKeyId = null;
       renderHardware();
     }
 
@@ -436,7 +442,7 @@ def build_html(rom: list[int]) -> str:
       if (!running) { running = true; requestAnimationFrame(frame); }
     }
 
-    const handleMouseDown = (event) => {
+    const handlePressStart = (event) => {
       const actionEl = event.target.closest("[data-action]");
       if (actionEl && actionEl.dataset.action === "power") {
         event.preventDefault();
@@ -448,18 +454,23 @@ def build_html(rom: list[int]) -> str:
       event.preventDefault();
       const keyId = keyEl.dataset.key;
       pressedKeys.add(keyId);
-      heldMouseKey = keyId;
+      heldKeyId = keyId;
       renderHardware();
     };
-    const handleMouseUp = () => {
-      if (!heldMouseKey) return;
-      pressedKeys.delete(heldMouseKey);
-      heldMouseKey = null;
+    const handlePressEnd = () => {
+      if (!heldKeyId) return;
+      pressedKeys.delete(heldKeyId);
+      heldKeyId = null;
       renderHardware();
     };
 
-    document.getElementById("hardware-wrap").addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("mouseup", handleMouseUp);
+    const hardware = document.getElementById("hardware-wrap");
+    hardware.addEventListener("pointerdown", handlePressStart);
+    document.addEventListener("pointerup", handlePressEnd);
+    document.addEventListener("pointercancel", handlePressEnd);
+    hardware.addEventListener("touchstart", handlePressStart, {passive: false});
+    document.addEventListener("touchend", handlePressEnd, {passive: false});
+    document.addEventListener("touchcancel", handlePressEnd, {passive: false});
 
     powerOffStop();
   </script>
