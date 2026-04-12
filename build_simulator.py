@@ -72,8 +72,6 @@ def build_html(rom: list[int]) -> str:
       background: url("calculator_cropped_tight10_cleaned_strong.png") center/cover no-repeat;
       user-select: none;
       touch-action: none;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
     }
     .hardware-display {
       position: absolute;
@@ -107,7 +105,6 @@ def build_html(rom: list[int]) -> str:
       background: transparent;
       cursor: pointer;
       outline: none;
-      -webkit-tap-highlight-color: transparent;
       touch-action: none;
     }
     .hw-key:focus { outline: none; }
