@@ -73,6 +73,23 @@ def build_html(rom: list[int]) -> str:
       user-select: none;
       touch-action: none;
     }
+    .credit {
+      position: fixed;
+      left: 8px;
+      bottom: 6px;
+      z-index: 20;
+      font: 11px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: rgba(255, 255, 255, 0.72);
+      text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7);
+    }
+    .credit a {
+      color: rgba(155, 215, 255, 0.9);
+      text-decoration: none;
+    }
+    .credit a:hover,
+    .credit a:focus-visible {
+      text-decoration: underline;
+    }
     .hardware-display {
       position: absolute;
       left: 5.07%;
@@ -112,6 +129,10 @@ def build_html(rom: list[int]) -> str:
 </head>
 <body>
   <div class="hardware-wrap" id="hardware-wrap"></div>
+  <div class="credit">
+    Original MM5799 reverse-engineering research by
+    <a href="https://www.seanriddle.com/mm5799.html" target="_blank" rel="noopener noreferrer">Sean Riddle</a>.
+  </div>
   <script>
     const ROM = __ROM_JSON__;
     const LFSR_SEQUENCE = __LFSR_JSON__;
