@@ -270,6 +270,14 @@ def build_html(rom: list[int]) -> str:
         btn.style.top = `${top}%`;
         btn.style.width = "15.62%";
         btn.style.height = "5.94%";
+        btn.addEventListener("pointerdown", handlePressStart);
+        btn.addEventListener("touchstart", handlePressStart, {passive: false});
+        btn.addEventListener("mousedown", handlePressStart);
+        btn.addEventListener("pointerup", handlePressEnd);
+        btn.addEventListener("pointercancel", handlePressEnd);
+        btn.addEventListener("touchend", handlePressEnd, {passive: false});
+        btn.addEventListener("touchcancel", handlePressEnd, {passive: false});
+        btn.addEventListener("mouseup", handlePressEnd);
         root.appendChild(btn);
       }
 
@@ -284,6 +292,9 @@ def build_html(rom: list[int]) -> str:
       power.style.top = `${powerTop}%`;
       power.style.width = "15.62%";
       power.style.height = "5.94%";
+      power.addEventListener("pointerdown", handlePressStart);
+      power.addEventListener("touchstart", handlePressStart, {passive: false});
+      power.addEventListener("mousedown", handlePressStart);
       root.appendChild(power);
       root.dataset.initialized = "1";
     }
@@ -442,14 +453,22 @@ def build_html(rom: list[int]) -> str:
       if (!running) { running = true; requestAnimationFrame(frame); }
     }
 
+    function targetElement(event) {
+      if (event.currentTarget && event.currentTarget.dataset) return event.currentTarget;
+      if (event.target && event.target.dataset) return event.target;
+      return null;
+    }
+
     const handlePressStart = (event) => {
-      const actionEl = event.target.closest("[data-action]");
+      const el = targetElement(event);
+      if (!el) return;
+      const actionEl = el.dataset.action ? el : null;
       if (actionEl && actionEl.dataset.action === "power") {
         event.preventDefault();
         if (powerEnabled) powerOffStop(); else powerOnStart();
         return;
       }
-      const keyEl = event.target.closest("[data-key]");
+      const keyEl = el.dataset.key ? el : null;
       if (!keyEl) return;
       event.preventDefault();
       const keyId = keyEl.dataset.key;
@@ -463,14 +482,11 @@ def build_html(rom: list[int]) -> str:
       heldKeyId = null;
       renderHardware();
     };
-
-    const hardware = document.getElementById("hardware-wrap");
-    hardware.addEventListener("pointerdown", handlePressStart);
     document.addEventListener("pointerup", handlePressEnd);
     document.addEventListener("pointercancel", handlePressEnd);
-    hardware.addEventListener("touchstart", handlePressStart, {passive: false});
     document.addEventListener("touchend", handlePressEnd, {passive: false});
     document.addEventListener("touchcancel", handlePressEnd, {passive: false});
+    document.addEventListener("mouseup", handlePressEnd);
 
     powerOffStop();
   </script>
