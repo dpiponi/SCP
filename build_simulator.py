@@ -59,7 +59,14 @@ def build_html(rom: list[int]) -> str:
     }
     .hardware-wrap {
       position: relative;
-      width: min(96vw, 460px);
+      width: min(
+        96vw,
+        calc(
+          (100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)
+          * 1671 / 3652
+        )
+      );
+      max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
       aspect-ratio: 1671 / 3652;
       overflow: hidden;
       background: url("calculator_cropped_tight10_cleaned_strong.png") center/cover no-repeat;
