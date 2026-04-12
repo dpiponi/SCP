@@ -392,19 +392,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       gap: 8px;
       margin-bottom: 4px;
     }}
-    .keypad-status {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      font-family: var(--font-code);
-      font-size: 12px;
-    }}
-    .keypad-status span {{
-      background: #f5eee1;
-      border: 1px solid var(--line);
-      padding: 4px 8px;
-      border-radius: 999px;
-    }}
     .key {{
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -887,12 +874,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         </div>
       </div>
 
-      <div class="panel">
-        <div class="section">
-          <div class="grid register-grid" id="flag-grid"></div>
-        </div>
-      </div>
-
       <div class="panel ram-panel">
         <div class="section">
           <strong>RAM (128 nibbles)</strong>
@@ -909,17 +890,10 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           <strong>Hardware</strong>
           <div class="hardware-wrap" id="hardware-wrap"></div>
           <div class="small-note">
-            Click keys on the photo. Blue = held/toggled, green = currently scanned row.
+            Hold keys on the photo. Blue = held, green = currently scanned row.
           </div>
           <div class="keypad-wrap" id="keypad"></div>
           <div class="keypad-controls">
-            <label class="toolbar-option" for="key-input-mode">
-              <span>Key Mode</span>
-              <select id="key-input-mode">
-                <option value="toggle" selected>Toggle</option>
-                <option value="hold">Hold</option>
-              </select>
-            </label>
             <label class="toolbar-option" for="force-k">
               <span>Force K</span>
               <input type="text" id="force-k" value="" placeholder="hex">
@@ -1027,15 +1001,10 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     const breakpoints = new Set();
     const ramWriteWatchpoints = new Set();
     const pressedKeys = new Set();
-    const heldPointerToKey = new Map();
+    let heldMouseKey = null;
     let lastRamWriteWatchHit = null;
     let selectedRamAddr = null;
     const lastWriteLogicalByAddr = new Array(128).fill(null);
-
-    function keyInputMode() {{
-      const el = document.getElementById("key-input-mode");
-      return el ? el.value : "toggle";
-    }}
 
     function decodedScanRow(d) {{
       return (d & 0xF) + 2;
@@ -1235,7 +1204,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       selectedRamAddr = null;
       lastWriteLogicalByAddr.fill(null);
       pressedKeys.clear();
-      heldPointerToKey.clear();
+      heldMouseKey = null;
       renderAll();
     }}
 
@@ -1830,31 +1799,12 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
 
     function renderKeypad() {{
       const root = document.getElementById("keypad");
-      const scanRow = decodedScanRow(state.D);
-      const expectedMask = expectedKForD(state.D);
-      const liveMask = kinput(state.D);
-      const heldKeys = KEYS.filter((key) => pressedKeys.has(key.id));
-      const heldLabels = heldKeys.map((key) => key.label);
-      const heldOnRow = heldKeys.filter((key) => key.row === scanRow);
-      let heldRowMask = 0;
-      for (const key of heldOnRow) heldRowMask |= key.bit;
-      root.innerHTML = `
-        <div class="keypad-status">
-          <span>D=${hex(state.D, 1)}</span>
-          <span>scan row=${scanRow}</span>
-          <span>held=${heldLabels.length ? heldLabels.join(",") : "--"}</span>
-          <span>held on row=${heldOnRow.length ? heldOnRow.map((key) => key.label).join(",") : "--"}</span>
-          <span>row-held mask=${hex(heldRowMask, 1)}</span>
-          <span>expected K=${hex(expectedMask, 1)}</span>
-          <span>live K=${hex(liveMask, 1)}</span>
-          <span>F2=${state.F2}</span>
-        </div>
-      `;
+      if (!root) return;
+      root.innerHTML = "";
     }}
 
     function renderAll() {{
       renderRegisterGrid();
-      renderFlagGrid();
       renderHardware();
       renderDisplay();
       renderKeypad();
@@ -1863,6 +1813,11 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       renderDisasm();
       renderTrace();
       updateControls();
+    }}
+
+    function renderDisplayFast() {{
+      renderHardware();
+      renderStatus();
     }}
 
     function updateControls() {{
@@ -2038,7 +1993,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         if (delay > 0) await sleep(delay);
       }} else {{
         if (result && result.dspsExecuted) {{
-          renderAll();
+          renderDisplayFast();
           await nextPaint();
         }} else if ((i & 0x3F) === 0x3F) {{
           await sleep(0);
@@ -2060,7 +2015,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           renderStopState();
           return;
         }}
-        if (result && result.dspsExecuted) renderAll();
+        if (result && result.dspsExecuted) renderDisplayFast();
       }}
     }}
 
@@ -2140,7 +2095,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           renderStopState();
           return;
         }}
-        if (result && result.dspsExecuted) renderAll();
+        if (result && result.dspsExecuted) renderDisplayFast();
       }}
       noteTrace(`step-until-return stopped after ${maxSteps} steps without executing RET/RETS`);
       renderTrace();
@@ -2268,7 +2223,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       }}
     }});
 
-    const handleKeyPointerDown = (event) => {{
+    const handleKeyMouseDown = (event) => {{
       const actionEl = event.target.closest("[data-action]");
       if (actionEl && actionEl.dataset.action === "power") {{
         event.preventDefault();
@@ -2279,41 +2234,23 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       if (!keyEl) return;
       event.preventDefault();
       const keyId = keyEl.dataset.key;
-      if (keyInputMode() === "hold") {{
-        pressedKeys.add(keyId);
-        heldPointerToKey.set(event.pointerId, keyId);
-        if (keyEl.setPointerCapture) keyEl.setPointerCapture(event.pointerId);
-      }} else {{
-        if (pressedKeys.has(keyId)) pressedKeys.delete(keyId);
-        else pressedKeys.add(keyId);
-      }}
+      pressedKeys.add(keyId);
+      heldMouseKey = keyId;
       renderKeypad();
       renderHardware();
     }};
 
-    const handleKeyPointerUp = (event) => {{
-      if (keyInputMode() !== "hold") return;
-      const keyId = heldPointerToKey.get(event.pointerId);
-      if (!keyId) return;
-      heldPointerToKey.delete(event.pointerId);
-      pressedKeys.delete(keyId);
+    const handleKeyMouseUp = () => {{
+      if (!heldMouseKey) return;
+      pressedKeys.delete(heldMouseKey);
+      heldMouseKey = null;
       renderKeypad();
       renderHardware();
     }};
 
-    document.getElementById("keypad").addEventListener("pointerdown", handleKeyPointerDown);
-    document.getElementById("hardware-wrap").addEventListener("pointerdown", handleKeyPointerDown);
-    document.addEventListener("pointerup", handleKeyPointerUp);
-    document.addEventListener("pointercancel", handleKeyPointerUp);
-
-    document.getElementById("key-input-mode").addEventListener("change", () => {{
-      if (keyInputMode() === "hold") {{
-        heldPointerToKey.clear();
-        pressedKeys.clear();
-      }}
-      renderKeypad();
-      renderHardware();
-    }});
+    document.getElementById("keypad").addEventListener("mousedown", handleKeyMouseDown);
+    document.getElementById("hardware-wrap").addEventListener("mousedown", handleKeyMouseDown);
+    document.addEventListener("mouseup", handleKeyMouseUp);
 
     document.getElementById("force-k").addEventListener("input", (event) => {{
       const input = event.target;
