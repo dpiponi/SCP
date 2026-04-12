@@ -364,6 +364,15 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       font: inherit;
       font-family: var(--font-code);
     }}
+    .toolbar-option input[type="text"] {{
+      width: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 4px 6px;
+      font: inherit;
+      font-family: var(--font-code);
+      text-align: center;
+    }}
     .keypad-wrap {{
       display: grid;
       gap: 8px;
@@ -718,7 +727,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
     .right {{
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto 1fr;
       min-height: 0;
     }}
     .code-header {{
@@ -808,24 +817,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       text-underline-offset: 2px;
       cursor: help;
     }}
-    .trace {{
-      border-top: 1px solid var(--line);
-      padding: 10px 14px 14px;
-      background: #fbf6ed;
-    }}
-    .trace h2 {{
-      margin: 0 0 8px;
-      font-size: 14px;
-    }}
-    .trace-list {{
-      max-height: 150px;
-      overflow: auto;
-      font-family: var(--font-code);
-      font-size: 12px;
-      line-height: 1.45;
-      color: var(--muted);
-      white-space: pre-wrap;
-    }}
     @media (max-width: 1100px) {{
       body {{
         height: auto;
@@ -857,7 +848,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         <div class="section">
           <h1>MM5799 Step Debugger</h1>
           <div class="subtitle">
-            Self-contained debugger for the Sinclair Cambridge Programmable ROM.
             Code view is driven by the current best annotated listing in
             <code>analysis/sinclaircambridgeprogrammable.dan.asm</code>.
           </div>
@@ -882,9 +872,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
               <span>Delay ms</span>
               <input type="number" id="animate-delay" min="0" max="2000" step="10" value="0">
             </label>
-            <label class="toolbar-option" for="lb05-as-04">
-              <input type="checkbox" id="lb05-as-04" checked>
-              <span>LB 05-&gt;04</span>
+            <label class="toolbar-option" for="lb05-value">
+              <span>LB(r,5)</span>
+              <input type="text" id="lb05-value" value="4" placeholder="hex">
             </label>
           </div>
           <div class="status-strip" id="status-strip"></div>
@@ -894,12 +884,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       <div class="panel">
         <div class="section">
           <div class="grid register-grid" id="register-grid"></div>
-          <div class="small-note">
-            Edit any register field, then use <strong>Apply Edits</strong>.
-            Click any instruction line on the right to move the PC there.
-            Command-click an instruction line to toggle a breakpoint.
-            RAM is shown below as hex digits.
-          </div>
         </div>
       </div>
 
@@ -912,11 +896,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       <div class="panel ram-panel">
         <div class="section">
           <strong>RAM (128 nibbles)</strong>
-          <div class="small-note">
-            Displayed as 8 rows × 16 columns to match the emulator's 128-nibble working RAM.
-            The current <code>B = (Br &lt;&lt; 4) | Bd</code> cell is highlighted.
-            Command-click a RAM cell to toggle a write breakpoint on that nibble.
-          </div>
         </div>
         <div class="ram-wrap">
           <div class="ram-grid" id="ram-grid"></div>
@@ -934,28 +913,16 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           </div>
           <div class="keypad-wrap" id="keypad"></div>
           <div class="keypad-controls">
-            <label class="toolbar-option" for="keypad-row-mode">
-              <span>Row decode</span>
-              <select id="keypad-row-mode">
-                <option value="direct">D = out number</option>
-                <option value="offset2" selected>D+2 = out number</option>
-                <option value="offset">D+3 = out number</option>
-                <option value="offset4">D+4 = out number</option>
-                <option value="invert">~D = out number</option>
-                <option value="invert_offset">~D+3 = out number</option>
+            <label class="toolbar-option" for="key-input-mode">
+              <span>Key Mode</span>
+              <select id="key-input-mode">
+                <option value="toggle" selected>Toggle</option>
+                <option value="hold">Hold</option>
               </select>
             </label>
             <label class="toolbar-option" for="force-k">
               <span>Force K</span>
               <input type="text" id="force-k" value="" placeholder="hex">
-            </label>
-            <label class="toolbar-option" for="invert-k">
-              <input type="checkbox" id="invert-k">
-              <span>Invert K</span>
-            </label>
-            <label class="toolbar-option" for="wire-k3-f2">
-              <input type="checkbox" id="wire-k3-f2">
-              <span>K3 -&gt; F2</span>
             </label>
           </div>
         </div>
@@ -968,10 +935,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
         <div class="meta" id="code-meta"></div>
       </div>
       <div class="disasm" id="disasm"></div>
-      <div class="trace">
-        <h2>Recent Execution</h2>
-        <div class="trace-list" id="trace-list"></div>
-      </div>
     </div>
   </div>
 
@@ -1056,7 +1019,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       visibleGlyphs: new Array(9).fill(" "),
     }};
 
-    const trace = [];
     let selectedLogical = null;
     let previousLogicalPC = null;
     let currentExecutingLogical = null;
@@ -1065,31 +1027,18 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     const breakpoints = new Set();
     const ramWriteWatchpoints = new Set();
     const pressedKeys = new Set();
+    const heldPointerToKey = new Map();
     let lastRamWriteWatchHit = null;
     let selectedRamAddr = null;
     const lastWriteLogicalByAddr = new Array(128).fill(null);
 
-    function keypadRowMode() {{
-      const el = document.getElementById("keypad-row-mode");
-      return el ? el.value : "direct";
+    function keyInputMode() {{
+      const el = document.getElementById("key-input-mode");
+      return el ? el.value : "toggle";
     }}
 
     function decodedScanRow(d) {{
-      const value = d & 0xF;
-      switch (keypadRowMode()) {{
-        case "offset2":
-          return value + 2;
-        case "offset":
-          return value + 3;
-        case "offset4":
-          return value + 4;
-        case "invert":
-          return (~value) & 0xF;
-        case "invert_offset":
-          return ((~value) & 0xF) + 3;
-        default:
-          return value;
-      }}
+      return (d & 0xF) + 2;
     }}
 
     function oct(n, width = 0) {{
@@ -1212,19 +1161,15 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       }} else {{
         mask = expectedKForD(_d);
       }}
-      const invertEl = document.getElementById("invert-k");
-      if (invertEl && invertEl.checked) mask = (~mask) & 0xF;
       return mask & 0xF;
     }}
 
-    function wireK3ToF2Enabled() {{
-      const el = document.getElementById("wire-k3-f2");
-      return !!(el && el.checked);
-    }}
-
-    function lb05As04Enabled() {{
-      const el = document.getElementById("lb05-as-04");
-      return !!(el && el.checked);
+    function lb05Value() {{
+      const el = document.getElementById("lb05-value");
+      if (!el) return 4;
+      const raw = (el.value || "").trim().toUpperCase().replace(/[^0-9A-F]/g, "");
+      if (raw === "") return 4;
+      return parseInt(raw.slice(-1), 16) & 0xF;
     }}
 
     function expectedKForD(_d) {{
@@ -1249,10 +1194,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
 
     function noteTrace(message) {{
-      trace.unshift(message);
-      if (trace.length > 40) {{
-        trace.length = 40;
-      }}
+      return;
     }}
 
     function resetState() {{
@@ -1288,12 +1230,12 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       state.visibleDigits.fill(0);
       state.visibleGlyphs.fill(" ");
       previousLogicalPC = null;
-      trace.length = 0;
       stopRequested = false;
       selectedLogical = null;
       selectedRamAddr = null;
       lastWriteLogicalByAddr.fill(null);
       pressedKeys.clear();
+      heldPointerToKey.clear();
       renderAll();
     }}
 
@@ -1409,7 +1351,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             if (!state.wasLB) {{
               state.Br = (opcode >> 4) & 0x3;
               tmp = opcode & 0x0F;
-              if (tmp === 0x0A) state.Bd = lb05As04Enabled() ? 4 : 5;
+              if (tmp === 0x0A) state.Bd = lb05Value();
               else if (tmp >= 0x0B) state.Bd = tmp;
             }}
             state.wasLB = true;
@@ -1442,7 +1384,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
             {{
               const held = heldKeySummaryForD(state.D);
               const liveK = kinput(state.D);
-              if (wireK3ToF2Enabled()) state.F2 = (liveK & 0x4) ? 1 : 0;
+              state.F2 = (liveK & 0x4) ? 0 : 1;
               if (liveK > 0) state.skip = true;
               noteTrace(
                 `TKB D=${hex(state.D, 1)} row=${decodedScanRow(state.D)} ` +
@@ -1622,15 +1564,11 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       const root = document.getElementById("register-grid");
       const fields = [
         ["logical_pc", oct(getLogicalPC(), 4)],
-        ["page", oct(state.Pp, 2)],
-        ["word", oct(state.Pw, 2)],
         ["raw_pc", oct(getRawPC(), 4)],
         ["SA", oct(state.SA, 4)],
         ["SB", oct(state.SB, 4)],
         ["A", hex(state.A, 1)],
         ["H", hex(state.H, 1)],
-        ["Br", hex(state.Br, 1)],
-        ["Bd", hex(state.Bd, 1)],
         ["B", hex(getB(), 2)],
         ["C", String(state.C)],
         ["D", hex(state.D, 1)],
@@ -1813,7 +1751,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
     }}
 
     function renderTrace() {{
-      document.getElementById("trace-list").textContent = trace.join("\\n");
+      return;
     }}
 
     function renderHardware() {{
@@ -1900,14 +1838,6 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       const heldOnRow = heldKeys.filter((key) => key.row === scanRow);
       let heldRowMask = 0;
       for (const key of heldOnRow) heldRowMask |= key.bit;
-      const sensed = [];
-      for (const [net, bit] of Object.entries(NET_TO_BIT)) {{
-        if (liveMask & bit) sensed.push(net);
-      }}
-      const expectedSensed = [];
-      for (const [net, bit] of Object.entries(NET_TO_BIT)) {{
-        if (expectedMask & bit) expectedSensed.push(net);
-      }}
       root.innerHTML = `
         <div class="keypad-status">
           <span>D=${hex(state.D, 1)}</span>
@@ -1916,12 +1846,9 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
           <span>held on row=${heldOnRow.length ? heldOnRow.map((key) => key.label).join(",") : "--"}</span>
           <span>row-held mask=${hex(heldRowMask, 1)}</span>
           <span>expected K=${hex(expectedMask, 1)}</span>
-          <span>expected nets=${expectedSensed.length ? expectedSensed.join(",") : "--"}</span>
           <span>live K=${hex(liveMask, 1)}</span>
-          <span>live nets=${sensed.length ? sensed.join(",") : "--"}</span>
           <span>F2=${state.F2}</span>
         </div>
-        <div class="key-meta">Held keys are returned by kinput(D) when the CPU scans that row. If Force K is set, it overrides the guessed keypad matrix.</div>
       `;
     }}
 
@@ -2341,7 +2268,7 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       }}
     }});
 
-    const toggleHeldKeyFromEvent = (event) => {{
+    const handleKeyPointerDown = (event) => {{
       const actionEl = event.target.closest("[data-action]");
       if (actionEl && actionEl.dataset.action === "power") {{
         event.preventDefault();
@@ -2352,16 +2279,40 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       if (!keyEl) return;
       event.preventDefault();
       const keyId = keyEl.dataset.key;
-      if (pressedKeys.has(keyId)) pressedKeys.delete(keyId);
-      else pressedKeys.add(keyId);
+      if (keyInputMode() === "hold") {{
+        pressedKeys.add(keyId);
+        heldPointerToKey.set(event.pointerId, keyId);
+        if (keyEl.setPointerCapture) keyEl.setPointerCapture(event.pointerId);
+      }} else {{
+        if (pressedKeys.has(keyId)) pressedKeys.delete(keyId);
+        else pressedKeys.add(keyId);
+      }}
       renderKeypad();
+      renderHardware();
     }};
 
-    document.getElementById("keypad").addEventListener("pointerdown", toggleHeldKeyFromEvent);
-    document.getElementById("hardware-wrap").addEventListener("pointerdown", toggleHeldKeyFromEvent);
-
-    document.getElementById("keypad-row-mode").addEventListener("change", () => {{
+    const handleKeyPointerUp = (event) => {{
+      if (keyInputMode() !== "hold") return;
+      const keyId = heldPointerToKey.get(event.pointerId);
+      if (!keyId) return;
+      heldPointerToKey.delete(event.pointerId);
+      pressedKeys.delete(keyId);
       renderKeypad();
+      renderHardware();
+    }};
+
+    document.getElementById("keypad").addEventListener("pointerdown", handleKeyPointerDown);
+    document.getElementById("hardware-wrap").addEventListener("pointerdown", handleKeyPointerDown);
+    document.addEventListener("pointerup", handleKeyPointerUp);
+    document.addEventListener("pointercancel", handleKeyPointerUp);
+
+    document.getElementById("key-input-mode").addEventListener("change", () => {{
+      if (keyInputMode() === "hold") {{
+        heldPointerToKey.clear();
+        pressedKeys.clear();
+      }}
+      renderKeypad();
+      renderHardware();
     }});
 
     document.getElementById("force-k").addEventListener("input", (event) => {{
@@ -2371,15 +2322,10 @@ def build_html(rom: list[int], disasm_lines: list[dict[str, object]], logical_to
       renderKeypad();
     }});
 
-    document.getElementById("invert-k").addEventListener("change", () => {{
-      renderKeypad();
-    }});
-
-    document.getElementById("wire-k3-f2").addEventListener("change", () => {{
-      renderKeypad();
-    }});
-
-    document.getElementById("lb05-as-04").addEventListener("change", () => {{
+    document.getElementById("lb05-value").addEventListener("input", (event) => {{
+      const input = event.target;
+      const raw = (input.value || "").toUpperCase().replace(/[^0-9A-F]/g, "");
+      input.value = raw.slice(-1);
       renderStatus();
       renderTrace();
     }});
