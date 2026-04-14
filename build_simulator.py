@@ -63,13 +63,13 @@ def build_html(rom: list[int]) -> str:
         96vw,
         calc(
           (100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)
-          * 1671 / 3652
+          * 637 / 1347
         )
       );
       max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
-      aspect-ratio: 1671 / 3652;
+      aspect-ratio: 637 / 1347;
       overflow: hidden;
-      background: url("calculator_cropped_tight10_cleaned_strong.png") center/cover no-repeat;
+      background: url("sinclair_clean_tight10.png") center/cover no-repeat;
       user-select: none;
       touch-action: none;
     }
@@ -92,10 +92,10 @@ def build_html(rom: list[int]) -> str:
     }
     .hardware-display {
       position: absolute;
-      left: 5.07%;
-      top: 8.03%;
-      width: 89.80%;
-      height: 7.91%;
+      left: 5.96%;
+      top: 8.43%;
+      width: 87.92%;
+      height: 7.83%;
       display: grid;
       grid-template-columns: repeat(9, minmax(0, 1fr));
       gap: 2px;
@@ -285,8 +285,8 @@ def build_html(rom: list[int]) -> str:
       for (const key of KEYS) {
         const p = KEY_HOTSPOTS[key.id];
         if (!p) continue;
-        const left = 17.06 + p.col * 22.23 - 15.62 / 2;
-        const top = 52.15 + p.row * 10.18 - 5.94 / 2;
+        const left = 17.70 + p.col * 21.76 - 15.29 / 2;
+        const top = 52.10 + p.row * 10.08 - 5.88 / 2;
         const btn = document.createElement("button");
         btn.className = "hw-key";
         btn.type = "button";
@@ -294,14 +294,14 @@ def build_html(rom: list[int]) -> str:
         btn.title = key.label;
         btn.style.left = `${left}%`;
         btn.style.top = `${top}%`;
-        btn.style.width = "15.62%";
-        btn.style.height = "5.94%";
+        btn.style.width = "15.29%";
+        btn.style.height = "5.88%";
         bindPressHandlers(btn);
         root.appendChild(btn);
       }
 
-      const powerLeft = 17.06 + 3 * 22.23 - 15.62 / 2;
-      const powerTop = 52.15 + 0 * 10.18 - 5.94 / 2;
+      const powerLeft = 17.70 + 3 * 21.76 - 15.29 / 2;
+      const powerTop = 52.10 + 0 * 10.08 - 5.88 / 2;
       const power = document.createElement("button");
       power.className = "hw-key";
       power.type = "button";
@@ -309,8 +309,8 @@ def build_html(rom: list[int]) -> str:
       power.title = "ON/OFF (mapped to Reset)";
       power.style.left = `${powerLeft}%`;
       power.style.top = `${powerTop}%`;
-      power.style.width = "15.62%";
-      power.style.height = "5.94%";
+      power.style.width = "15.29%";
+      power.style.height = "5.88%";
       bindPressHandlers(power);
       root.appendChild(power);
       root.dataset.initialized = "1";
